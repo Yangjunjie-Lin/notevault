@@ -1,0 +1,8 @@
+*:Zone.Identifier
+node_modules/
+.env
+backend/serviceAccountKey.json
+backend/__pycache__/
+frontend/dist/
+frontend/.env
+*.log
