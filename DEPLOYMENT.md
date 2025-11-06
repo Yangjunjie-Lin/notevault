@@ -18,6 +18,16 @@
 - New Project → Deploy from GitHub repo
 - 选择你的仓库
 
+### ⚠️ 重要：设置 Root Directory
+Railway 会检测到整个项目，需要指定后端目录：
+
+1. 进入项目设置 **Settings**
+2. 找到 **Root Directory** 设置
+3. 输入：`backend`
+4. 点击 **Save**
+
+这样 Railway 就会只部署 `backend/` 目录中的代码。
+
 ### 2. 配置环境变量
 ```env
 PORT=8000

@@ -22,6 +22,12 @@
 
 ## 🚂 Railway 后端部署
 
+### ⚠️ 重要：Root Directory 设置
+```
+Settings → Root Directory → backend
+```
+**必须设置**，否则 Railway 无法识别项目类型。
+
 ### 环境变量（必需）
 ```env
 ALLOWED_ORIGINS=https://YOUR-APP.vercel.app,http://localhost:5173
