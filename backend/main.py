@@ -25,28 +25,46 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("GreatUniHackBackend")
 
 # ------------------------------------------------------------------------------
-# 2. 初始化 Firebase
+# 2. 初始化 Firebase (自动检测路径)
 # ------------------------------------------------------------------------------
 def init_firebase():
-    """Initialize Firebase Admin SDK"""
-    if not firebase_admin._apps:
-        # 从环境变量或默认路径加载密钥
-        default_path = os.path.join(os.path.dirname(__file__), "serviceAccountKey.json")
-        path = os.environ.get("FIREBASE_CREDENTIALS_PATH", default_path)
+    """Initialize Firebase Admin SDK with flexible path detection."""
+    if firebase_admin._apps:
+        return firestore.client()
 
-        if not os.path.exists(path):
-            raise RuntimeError(
-                f"❌ Firebase service account JSON not found.\n"
-                f"Tried: {path}\n"
-                f"Please place 'serviceAccountKey.json' in backend/ or set FIREBASE_CREDENTIALS_PATH."
-            )
+    # 当前运行目录（修复 uvicorn reload cwd 错位问题）
+    cwd = os.getcwd()
+    file_dir = os.path.dirname(os.path.abspath(__file__))
 
-        logger.info(f"✅ Initializing Firebase from: {path}")
-        cred = credentials.Certificate(path)
-        firebase_admin.initialize_app(cred)
+    # 优先读取环境变量（如果 .env 中配置了）
+    env_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
 
+    # 合法的默认候选路径（支持两种启动方式）
+    candidates = []
+    if env_path:
+        candidates.append(env_path)
+    candidates.append(os.path.join(file_dir, "serviceAccountKey.json"))   # backend 下运行
+    candidates.append(os.path.join(cwd, "backend", "serviceAccountKey.json"))  # 项目根运行
+    candidates.append(os.path.join(cwd, "serviceAccountKey.json"))  # 万一手动放在 cwd
+
+    # 选出第一个存在的路径
+    cred_path = next((p for p in candidates if os.path.exists(p)), None)
+
+    if not cred_path:
+        raise RuntimeError(
+            "❌ Firebase service account JSON not found.\n"
+            f"Tried paths:\n - " + "\n - ".join(candidates) +
+            "\n👉 Place 'serviceAccountKey.json' in backend/, "
+            "or set FIREBASE_CREDENTIALS_PATH in .env."
+        )
+
+    logger.info(f"✅ Initializing Firebase from: {cred_path}")
+    cred = credentials.Certificate(cred_path)
+    firebase_admin.initialize_app(cred)
     return firestore.client()
 
+
+# Firestore client
 db = init_firebase()
 
 # ------------------------------------------------------------------------------
@@ -62,7 +80,7 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,         # 🔒 明确允许的前端地址
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
