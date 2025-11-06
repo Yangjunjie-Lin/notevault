@@ -11,70 +11,44 @@
 ### 原因
 Railway 检测到的是整个项目根目录，而不是 `backend/` 子目录。项目根目录同时包含前端和后端，导致 Railway 无法自动识别。
 
-### ✅ 解决方案 1：设置 Root Directory（推荐）
+### ✅ 解决方案 1：设置 Root Directory（推荐）⭐⭐⭐⭐⭐
 
-这是**最简单且推荐**的方法：
+这是**最简单且推荐**的方法，无需任何配置文件：
 
 #### 步骤：
 1. 在 Railway Dashboard 中，点击你的服务
 2. 进入 **Settings** 标签
-3. 找到 **Source** 部分下的 **Root Directory**
+3. 找到 **Service** 部分下的 **Root Directory**
 4. 输入：`backend`
 5. 点击右侧的勾选按钮保存
 6. Railway 会自动重新部署
 
+#### 为什么推荐这个方法？
+- ✅ 无需修改任何配置文件
+- ✅ Railway 自动检测 Python 项目
+- ✅ 自动使用正确的 Python 版本
+- ✅ 自动安装 requirements.txt
+- ✅ 自动使用 Procfile 或检测启动命令
+
 #### 截图位置：
 ```
-Project → Service → Settings → Root Directory
+Project → Service → Settings → Service → Root Directory
 输入: backend
+保存（点击勾选图标）
 ```
 
-现在 Railway 只会分析和部署 `backend/` 目录，能正确识别为 Python 项目。
+现在 Railway 只会分析和部署 `backend/` 目录，能正确识别为 Python 项目并自动配置所有内容。
 
 ---
 
-### ✅ 解决方案 2：使用 nixpacks.toml（备选）
+### ❌ 不推荐：使用 nixpacks.toml 或 railway.toml
 
-如果你想从根目录部署，可以使用项目根目录的 `nixpacks.toml` 文件：
+虽然可以通过配置文件指定构建方式，但这会增加复杂性：
+- ❌ 需要手动配置 Python 路径
+- ❌ 可能与 Railway 的自动检测冲突
+- ❌ 维护成本高
 
-#### 已创建的文件：
-```toml
-# /root/Projects/personal-notebook-app/nixpacks.toml
-[phases.setup]
-nixPkgs = ["python312"]
-
-[phases.install]
-cmds = ["cd backend && pip install -r requirements.txt"]
-
-[start]
-cmd = "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
-```
-
-这个文件会告诉 Railway：
-1. 使用 Python 3.12
-2. 进入 `backend/` 目录安装依赖
-3. 从 `backend/` 目录启动应用
-
-#### 使用此方法的步骤：
-1. 确保 `nixpacks.toml` 在项目根目录
-2. 推送到 GitHub
-3. Railway 会自动检测并使用这个配置
-4. **不需要**设置 Root Directory
-
----
-
-### ✅ 解决方案 3：创建单独的后端仓库（高级）
-
-如果你经常需要独立部署前后端，可以考虑：
-
-```bash
-# 创建后端专用分支
-git subtree split --prefix=backend -b backend-only
-
-# 或者创建单独的仓库
-```
-
-这种方法适合大型项目，对于当前项目不推荐。
+**结论**：对于本项目，直接设置 Root Directory 是最佳方案。
 
 ---
 
@@ -82,9 +56,11 @@ git subtree split --prefix=backend -b backend-only
 
 | 方案 | 优点 | 缺点 | 推荐度 |
 |------|------|------|--------|
-| **Root Directory** | 最简单，UI 操作 | 需要手动设置 | ⭐⭐⭐⭐⭐ |
-| **nixpacks.toml** | 配置即代码 | 需要理解配置格式 | ⭐⭐⭐⭐ |
-| **单独仓库** | 完全分离 | 维护复杂 | ⭐⭐ |
+| **Root Directory** | 最简单，UI 操作，自动检测 | 需要手动设置一次 | ⭐⭐⭐⭐⭐ |
+| ~~nixpacks.toml~~ | ~~配置即代码~~ | 容易出错，维护复杂 | ❌ 不推荐 |
+| ~~单独仓库~~ | ~~完全分离~~ | 维护复杂 | ❌ 不推荐 |
+
+**结论**：对于 monorepo 项目，使用 Railway 的 Root Directory 设置是最佳实践。
 
 ---
 
