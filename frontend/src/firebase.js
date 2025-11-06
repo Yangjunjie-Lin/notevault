@@ -1,10 +1,9 @@
-// Fill with your Firebase Web config from the Firebase Console.
+// frontend/src/firebase.js
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getFirestore } from 'firebase/firestore'
 
-// Your web app's Firebase configuration
+// ⚙️ Firebase web config
 const firebaseConfig = {
   apiKey: "AIzaSyBp2Yj1yzvbDBlI0Iu0yt75C5y6hCTu2xM",
   authDomain: "greatunihackdemo.firebaseapp.com",
@@ -14,15 +13,12 @@ const firebaseConfig = {
   appId: "1:616164585973:web:9aaadd55b5cf947d5930bc"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// 🔥 Initialize Firebase
+export const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
+export const db = getFirestore(app)
+
+// 🧩 Auth helpers
 const provider = new GoogleAuthProvider()
-
-export async function signInWithGoogle() {
-  await signInWithPopup(auth, provider)
-}
-
-export async function logout() {
-  await signOut(auth)
-}
+export const signInWithGoogle = () => signInWithPopup(auth, provider)
+export const logout = () => signOut(auth)
