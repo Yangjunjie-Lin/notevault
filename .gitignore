@@ -1,8 +1,16 @@
 *:Zone.Identifier
 node_modules/
 .env
+.env.local
 backend/serviceAccountKey.json
 backend/__pycache__/
+backend/.venv/
+backend/venv/
 frontend/dist/
 frontend/.env
+frontend/.env.local
 *.log
+*.pyc
+.DS_Store
+.vscode/
+.idea/

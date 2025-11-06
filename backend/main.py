@@ -32,6 +32,20 @@ def init_firebase():
     if firebase_admin._apps:
         return firestore.client()
 
+    # 优先尝试从环境变量读取 JSON 字符串（适用于 Railway 等云平台）
+    firebase_creds_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
+    if firebase_creds_json:
+        try:
+            import json
+            cred_dict = json.loads(firebase_creds_json)
+            logger.info("✅ Initializing Firebase from FIREBASE_CREDENTIALS_JSON environment variable")
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+            return firestore.client()
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ Failed to parse FIREBASE_CREDENTIALS_JSON: {e}")
+            raise RuntimeError("Invalid FIREBASE_CREDENTIALS_JSON format")
+
     # 当前运行目录（修复 uvicorn reload cwd 错位问题）
     cwd = os.getcwd()
     file_dir = os.path.dirname(os.path.abspath(__file__))
@@ -55,7 +69,8 @@ def init_firebase():
             "❌ Firebase service account JSON not found.\n"
             f"Tried paths:\n - " + "\n - ".join(candidates) +
             "\n👉 Place 'serviceAccountKey.json' in backend/, "
-            "or set FIREBASE_CREDENTIALS_PATH in .env."
+            "or set FIREBASE_CREDENTIALS_PATH in .env, "
+            "or set FIREBASE_CREDENTIALS_JSON with the full JSON content."
         )
 
     logger.info(f"✅ Initializing Firebase from: {cred_path}")
@@ -73,10 +88,11 @@ db = init_firebase()
 app = FastAPI(title="GreatUniHack Demo API", version="1.0")
 
 # ✅ CORS 配置：允许前端（Vite）访问
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+# 从环境变量读取允许的源，支持多个域名（逗号分隔）
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+origins = [origin.strip() for origin in allowed_origins_env.split(",")]
+
+logger.info(f"✅ CORS允许的源: {origins}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -172,4 +188,5 @@ def test_db():
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
