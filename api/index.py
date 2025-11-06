@@ -3,6 +3,7 @@ Vercel Serverless Function - Main API Entry
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from mangum import Mangum
 import os
 
 # 创建 FastAPI 应用
@@ -31,5 +32,5 @@ def root():
     """API 状态检测"""
     return {"ok": True, "message": "🚀 Backend running on Vercel!"}
 
-# Vercel 需要这个作为入口点
-handler = app
+# Vercel serverless handler
+handler = Mangum(app, lifespan="off")
