@@ -1,4 +1,4 @@
-# Personal Notebook
+# NoteVault
 
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=111111)
 ![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=ffffff)
@@ -6,18 +6,22 @@
 ![Firebase](https://img.shields.io/badge/Firebase-Auth%20%2B%20Firestore-FFCA28?logo=firebase&logoColor=111111)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=ffffff)
 
-Personal Notebook is a full-stack note-taking application built with React, FastAPI, Firebase Authentication, and Firestore. It uses Google sign-in on the frontend and verifies Firebase ID tokens on the backend before reading or writing user-owned notes.
+NoteVault is a full-stack note-taking application built with React, FastAPI, Firebase Authentication, and Firestore. It uses Google sign-in on the frontend and verifies Firebase ID tokens on the backend before reading or writing user-owned notes.
 
-The project is intentionally small, but structured like a production-ready GitHub repository: clear frontend/backend boundaries, environment-based configuration, typed API schemas, deployment notes, and security guidance.
+The repository is structured as a production-oriented GitHub project: clear frontend/backend boundaries, environment-based configuration, typed API schemas, documented deployment paths, security guidance, automated tests, and a CI workflow.
 
 ## Features
 
 - Google sign-in with Firebase Authentication
-- Authenticated note creation, listing, and deletion
-- User-scoped Firestore records enforced by backend token verification
-- Environment-based configuration for local development and deployment
+- User-scoped notes enforced by backend Firebase ID token verification
+- Search across note text and tags
+- Tag creation and tag-based filtering
+- Markdown writing with live preview and rendered note display
+- Per-user in-memory API rate limiting for note endpoints
 - FastAPI OpenAPI documentation at `/docs`
-- Clean monorepo-style structure with separate frontend and backend apps
+- Backend pytest coverage with a fake Firestore test double
+- Frontend React smoke test with Vitest and Testing Library
+- Firestore Security Rules guidance for backend-only and direct-client models
 
 ## Tech Stack
 
@@ -25,11 +29,15 @@ The project is intentionally small, but structured like a production-ready GitHu
 | --- | --- | --- |
 | Frontend | React 18 | Component-based user interface |
 | Frontend tooling | Vite 7 | Local dev server and production bundling |
+| Markdown | react-markdown, remark-gfm | Safe Markdown preview and rendering |
+| Frontend tests | Vitest, Testing Library, jsdom | Smoke testing the authenticated workspace |
 | Authentication | Firebase Authentication | Google OAuth sign-in and ID tokens |
 | Backend | FastAPI | HTTP API, routing, validation, and OpenAPI docs |
 | Backend runtime | Python 3.12 | API runtime |
+| Backend tests | pytest, FastAPI TestClient | API behavior and user isolation tests |
 | Data store | Cloud Firestore | Per-user note storage |
 | Backend SDK | Firebase Admin SDK | Token verification and privileged Firestore access |
+| CI | GitHub Actions | Frontend tests/build/audit and backend tests |
 | Deployment targets | Vercel, Netlify, Railway, Render, Fly.io | Static frontend and Python API hosting |
 
 ## Architecture
@@ -38,43 +46,49 @@ The project is intentionally small, but structured like a production-ready GitHu
 flowchart LR
   browser["Browser / React App"] --> auth["Firebase Authentication"]
   browser --> api["FastAPI Backend"]
+  api --> limiter["Rate Limiter"]
   api --> admin["Firebase Admin SDK"]
   admin --> firestore["Cloud Firestore"]
   auth --> browser
 ```
 
-The frontend signs users in with Firebase Authentication and sends the Firebase ID token to the FastAPI backend in an `Authorization: Bearer <token>` header. The backend verifies the token with Firebase Admin SDK and scopes all note operations to the authenticated user ID.
+The frontend signs users in with Firebase Authentication and sends the Firebase ID token to the FastAPI backend in an `Authorization: Bearer <token>` header. The backend verifies the token with Firebase Admin SDK, applies a per-user rate limit, and scopes note operations to the authenticated Firebase user ID.
 
 ## Project Structure
 
 ```text
-personal-notebook-app/
-├── backend/
-│   ├── app/
-│   │   ├── main.py          # FastAPI app setup
-│   │   ├── firebase.py      # Firebase Admin initialization
-│   │   ├── dependencies.py  # Authentication dependencies
-│   │   ├── schemas.py       # Pydantic API schemas
-│   │   └── routers/
-│   │       ├── health.py
-│   │       └── notes.py
-│   ├── requirements.txt
-│   ├── Procfile
-│   └── railway.json
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── App.jsx
-│   │   ├── api.js
-│   │   └── firebase.js
-│   ├── package.json
-│   └── vite.config.js
-├── docs/
-│   ├── deployment.md
-│   └── firebase.md
-├── .env.example
-├── package.json
-└── requirements.txt
+notevault/
+|-- .github/
+|   |-- workflows/ci.yml
+|   |-- pull_request_template.md
+|   `-- ISSUE_TEMPLATE/
+|-- backend/
+|   |-- app/
+|   |   |-- main.py
+|   |   |-- firebase.py
+|   |   |-- dependencies.py
+|   |   |-- rate_limit.py
+|   |   |-- schemas.py
+|   |   `-- routers/
+|   |-- tests/
+|   |-- requirements.txt
+|   `-- requirements-dev.txt
+|-- frontend/
+|   |-- src/
+|   |   |-- components/
+|   |   |-- App.jsx
+|   |   |-- App.smoke.test.jsx
+|   |   |-- api.js
+|   |   `-- firebase.js
+|   |-- package.json
+|   `-- vite.config.js
+|-- docs/
+|   |-- deployment.md
+|   |-- firebase.md
+|   `-- firestore-security-rules.md
+|-- .env.example
+|-- package.json
+`-- requirements.txt
 ```
 
 ## Prerequisites
@@ -90,7 +104,7 @@ personal-notebook-app/
 
 ```bash
 git clone <repository-url>
-cd personal-notebook-app
+cd notevault
 ```
 
 ### 2. Configure environment variables
@@ -126,7 +140,7 @@ Create and activate a Python virtual environment:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r backend/requirements.txt
+pip install -r backend/requirements-dev.txt
 ```
 
 PowerShell activation on Windows:
@@ -184,7 +198,7 @@ Authorization: Bearer <firebase-id-token>
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/health` | Check whether the API is running |
-| `GET` | `/notes` | List notes for the authenticated user |
+| `GET` | `/notes?q=<query>&tag=<tag>` | List notes for the authenticated user, optionally filtered by search query and tag |
 | `POST` | `/notes` | Create a note for the authenticated user |
 | `DELETE` | `/notes/{note_id}` | Delete one of the authenticated user's notes |
 
@@ -192,8 +206,27 @@ Create note request body:
 
 ```json
 {
-  "text": "Write something worth remembering."
+  "text": "## Weekly plan\n\n- Ship tests\n- Update docs",
+  "tags": ["work", "planning"]
 }
+```
+
+## Quality Gates
+
+These commands are also encoded in [.github/workflows/ci.yml](.github/workflows/ci.yml).
+
+| Check | Command |
+| --- | --- |
+| Frontend smoke test | `npm run test:frontend` |
+| Frontend production build | `npm run build:frontend` |
+| Frontend production dependency audit | `cd frontend && npm audit --omit=dev` |
+| Backend tests | `npm run test:backend` |
+| Backend import/bytecode check | `python -m compileall backend/app` |
+
+Run the full local test suite:
+
+```bash
+npm test
 ```
 
 ## Scripts
@@ -207,6 +240,9 @@ Root-level scripts:
 | `npm run build:frontend` | Build the frontend for production |
 | `npm run preview:frontend` | Preview the production frontend build |
 | `npm run dev:backend` | Start the FastAPI backend with reload |
+| `npm run test:frontend` | Run the frontend smoke test |
+| `npm run test:backend` | Run backend pytest tests |
+| `npm test` | Run frontend and backend tests |
 
 Backend can also be started directly:
 
@@ -214,7 +250,17 @@ Backend can also be started directly:
 uvicorn app.main:app --reload --app-dir backend
 ```
 
-## Deployment
+## Deployment Links
+
+| Target | Link |
+| --- | --- |
+| Frontend live app | Add the deployed frontend URL after release |
+| Backend health check | Add the deployed `/health` URL after release |
+| Backend API docs | Add the deployed `/docs` URL after release |
+| Deployment guide | [docs/deployment.md](docs/deployment.md) |
+| Railway backend config | [backend/railway.json](backend/railway.json) |
+| Vercel frontend config | [frontend/vercel.json](frontend/vercel.json) |
+| CI workflow | [.github/workflows/ci.yml](.github/workflows/ci.yml) |
 
 Recommended deployment model:
 
@@ -222,13 +268,12 @@ Recommended deployment model:
 - Deploy `backend/` as a Python/FastAPI service.
 - Use Firebase for Authentication and Firestore.
 
-See [docs/deployment.md](docs/deployment.md) for platform-specific guidance.
-
 ## Security
 
 - Do not commit `.env`, `backend/serviceAccountKey.json`, or any Firebase service account credential.
 - Firebase Web App config is safe to expose in the browser, but Firebase service account credentials are backend-only secrets.
 - Set `ALLOWED_ORIGINS` to trusted production domains in deployed environments.
+- Use [docs/firestore-security-rules.md](docs/firestore-security-rules.md) to configure Firestore for the backend-only access model.
 - Review [SECURITY.md](SECURITY.md) before publishing or accepting external contributions.
 
 ## Contributing

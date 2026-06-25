@@ -1,8 +1,8 @@
 {
-  "name": "personal-notebook",
+  "name": "notevault",
   "private": true,
   "version": "1.0.0",
-  "description": "Full-stack personal notebook application built with React, FastAPI, Firebase Authentication, and Firestore.",
+  "description": "Full-stack note-taking application built with React, FastAPI, Firebase Authentication, and Firestore.",
   "type": "module",
   "engines": {
     "node": ">=20",
@@ -22,6 +22,9 @@
     "build:frontend": "npm --prefix frontend run build",
     "preview:frontend": "npm --prefix frontend run preview",
     "dev:backend": "uvicorn app.main:app --reload --app-dir backend",
-    "install:frontend": "npm --prefix frontend install"
+    "install:frontend": "npm --prefix frontend install",
+    "test:frontend": "npm --prefix frontend run test",
+    "test:backend": "python -m pytest backend/tests",
+    "test": "npm run test:frontend && npm run test:backend"
   }
 }

@@ -13,7 +13,7 @@ load_dotenv(BASE_DIR / ".env")
 
 
 class Settings:
-    app_name = "Personal Notebook API"
+    app_name = "NoteVault API"
     version = "1.0.0"
 
     def __init__(self) -> None:
@@ -35,4 +35,3 @@ class Settings:
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

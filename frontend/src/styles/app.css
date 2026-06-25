@@ -145,14 +145,40 @@ button:disabled {
 
 .note-form {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
+  gap: 14px;
   margin-bottom: 20px;
+}
+
+.note-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.editor-toolbar {
+  display: flex;
+  width: fit-content;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.editor-toolbar button {
+  min-width: 82px;
+  background: transparent;
+  color: #536071;
+  padding: 8px 12px;
+  font-weight: 700;
+}
+
+.editor-toolbar button.is-active {
+  background: #2457c5;
+  color: #ffffff;
 }
 
 .note-form textarea {
   width: 100%;
-  min-height: 92px;
+  min-height: 160px;
   resize: vertical;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
@@ -165,6 +191,66 @@ button:disabled {
   border-color: #2457c5;
   box-shadow: 0 0 0 3px rgba(36, 87, 197, 0.14);
   outline: none;
+}
+
+.note-form-footer,
+.search-bar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.note-form-footer input,
+.search-bar input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #1f2937;
+  background: #fbfdff;
+}
+
+.search-bar {
+  grid-template-columns: 1fr minmax(160px, 220px) auto auto;
+  margin-bottom: 20px;
+  border-top: 1px solid #e3e8f0;
+  padding-top: 20px;
+}
+
+.search-bar button {
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 700;
+}
+
+.search-bar button[type="submit"] {
+  background: #2457c5;
+  color: #ffffff;
+}
+
+.markdown-preview {
+  min-height: 160px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfdff;
+}
+
+.markdown-preview > :first-child,
+.note-content > :first-child {
+  margin-top: 0;
+}
+
+.markdown-preview > :last-child,
+.note-content > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-preview code,
+.note-content code {
+  border-radius: 4px;
+  background: #eef2f7;
+  padding: 2px 4px;
 }
 
 .note-list {
@@ -192,9 +278,32 @@ button:disabled {
   white-space: pre-wrap;
 }
 
+.note-content {
+  min-width: 0;
+}
+
 .note-item time {
+  display: block;
+  margin-top: 8px;
   color: #687386;
   font-size: 0.875rem;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.tag-pill {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #eef4ff;
+  color: #20426f;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .muted-message {
@@ -226,6 +335,8 @@ button:disabled {
 
   .app-header,
   .note-form,
+  .note-form-footer,
+  .search-bar,
   .note-item {
     grid-template-columns: 1fr;
     flex-direction: column;

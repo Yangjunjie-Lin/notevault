@@ -2,7 +2,7 @@
 
 ## 1. Create a Firebase project
 
-Open the Firebase Console and create a project for this app.
+Open the Firebase Console and create a project for NoteVault.
 
 ## 2. Enable Google sign-in
 
@@ -34,11 +34,12 @@ Create a Firestore database. The backend stores notes in a `notes` collection wi
 {
   "uid": "firebase-user-id",
   "text": "note content",
+  "tags": ["work", "ideas"],
   "createdAt": 1710000000000
 }
 ```
 
-Because all note writes go through the backend, Firestore client write rules can stay restrictive.
+Because all note writes go through the backend, Firestore client write rules can stay restrictive. See [firestore-security-rules.md](firestore-security-rules.md).
 
 ## 5. Configure the service account
 
@@ -51,4 +52,3 @@ backend/serviceAccountKey.json
 ```
 
 For deployment, prefer `FIREBASE_CREDENTIALS_JSON` as a platform environment variable. Keep it as a single-line JSON string.
-

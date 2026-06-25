@@ -1,2 +1,1 @@
-"""Personal Notebook backend package."""
-
+"""NoteVault backend package."""

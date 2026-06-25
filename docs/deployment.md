@@ -1,6 +1,6 @@
 # Deployment
 
-The app is easiest to deploy as two services: a static frontend and a FastAPI backend.
+NoteVault is easiest to deploy as two services: a static frontend and a FastAPI backend.
 
 ## Frontend
 
@@ -53,10 +53,22 @@ FIREBASE_CREDENTIALS_JSON={"type":"service_account","project_id":"your-project-i
 
 The `backend/railway.json` file is configured for a backend service whose root directory is `backend`.
 
+## Deployment links
+
+Fill these links after release and mirror them in the README:
+
+| Target | URL |
+| --- | --- |
+| Frontend live app | `https://your-frontend.example.com` |
+| Backend health check | `https://your-backend.example.com/health` |
+| Backend API docs | `https://your-backend.example.com/docs` |
+| CI workflow | `.github/workflows/ci.yml` |
+
 ## Production checks
 
+- Confirm CI passes before deployment.
 - Confirm `GET /health` returns `{"ok":true,...}`.
 - Confirm the frontend `VITE_API_BASE_URL` points to the backend URL.
 - Confirm Firebase Authentication has the production domain in its authorized domains.
 - Confirm `ALLOWED_ORIGINS` contains the production frontend origin.
-
+- Confirm Firestore rules follow [firestore-security-rules.md](firestore-security-rules.md).

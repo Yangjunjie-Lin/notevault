@@ -1,7 +1,7 @@
 export default function Header({ user, authReady, onSignIn, onSignOut }) {
   return (
     <header className="app-header">
-      <h1>Personal Notebook</h1>
+      <h1>NoteVault</h1>
       {user ? (
         <div className="user-info">
           {user.photoURL && <img src={user.photoURL} alt="" />}

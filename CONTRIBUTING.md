@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest in improving Personal Notebook.
+Thank you for your interest in improving NoteVault.
 
 ## Development Workflow
 
@@ -14,12 +14,14 @@ Thank you for your interest in improving Personal Notebook.
 Frontend:
 
 ```bash
+npm run test:frontend
 npm run build:frontend
 ```
 
 Backend:
 
 ```bash
+npm run test:backend
 python -m compileall backend/app
 ```
 
@@ -36,4 +38,3 @@ npm audit --omit=dev
 - Include screenshots for user interface changes.
 - Mention any required environment variable changes.
 - Keep unrelated refactors out of feature or bug-fix pull requests.
-
