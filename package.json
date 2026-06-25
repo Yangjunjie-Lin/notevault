@@ -1,20 +1,27 @@
 {
-  "name": "personal-notebook-app",
+  "name": "personal-notebook",
   "private": true,
   "version": "1.0.0",
+  "description": "Full-stack personal notebook application built with React, FastAPI, Firebase Authentication, and Firestore.",
   "type": "module",
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10",
+    "python": ">=3.12"
+  },
+  "keywords": [
+    "react",
+    "vite",
+    "fastapi",
+    "firebase",
+    "firestore",
+    "notes"
+  ],
   "scripts": {
-    "dev": "vite --host",
-    "build": "vite build",
-    "preview": "vite preview --port 4173"
-  },
-  "dependencies": {
-    "firebase": "^11.0.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.2.0",
-    "vite": "^7.2.0"
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "preview:frontend": "npm --prefix frontend run preview",
+    "dev:backend": "uvicorn app.main:app --reload --app-dir backend",
+    "install:frontend": "npm --prefix frontend install"
   }
 }

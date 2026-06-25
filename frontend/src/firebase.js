@@ -1,24 +1,35 @@
-// frontend/src/firebase.js
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
 
-// ⚙️ Firebase web config
 const firebaseConfig = {
-  apiKey: "AIzaSyBp2Yj1yzvbDBlI0Iu0yt75C5y6hCTu2xM",
-  authDomain: "greatunihackdemo.firebaseapp.com",
-  projectId: "greatunihackdemo",
-  storageBucket: "greatunihackdemo.firebasestorage.app",
-  messagingSenderId: "616164585973",
-  appId: "1:616164585973:web:9aaadd55b5cf947d5930bc"
-};
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+}
 
-// 🔥 Initialize Firebase
-export const app = initializeApp(firebaseConfig)
-export const auth = getAuth(app)
-export const db = getFirestore(app)
+const missingKeys = Object.entries(firebaseConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => key)
 
-// 🧩 Auth helpers
+export const firebaseConfigError = missingKeys.length
+  ? `Missing Firebase config values: ${missingKeys.join(', ')}`
+  : ''
+
+export const app = firebaseConfigError ? null : initializeApp(firebaseConfig)
+export const auth = app ? getAuth(app) : null
+
 const provider = new GoogleAuthProvider()
-export const signInWithGoogle = () => signInWithPopup(auth, provider)
-export const logout = () => signOut(auth)
+
+export function signInWithGoogle() {
+  if (!auth) return Promise.reject(new Error(firebaseConfigError))
+  return signInWithPopup(auth, provider)
+}
+
+export function logout() {
+  if (!auth) return Promise.resolve()
+  return signOut(auth)
+}
+

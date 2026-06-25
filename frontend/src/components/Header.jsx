@@ -1,15 +1,15 @@
-export default function Header({ user, onSignIn, onSignOut }) {
+export default function Header({ user, authReady, onSignIn, onSignOut }) {
   return (
     <header className="app-header">
-      <h1>🧠 GreatUniHack Notes</h1>
+      <h1>Personal Notebook</h1>
       {user ? (
         <div className="user-info">
-          <img src={user.photoURL} alt="avatar" />
-          <span>{user.displayName}</span>
-          <button onClick={onSignOut}>Log out</button>
+          {user.photoURL && <img src={user.photoURL} alt="" />}
+          <span>{user.displayName || user.email}</span>
+          <button className="btn-secondary" onClick={onSignOut}>Log out</button>
         </div>
       ) : (
-        <button className="btn-primary" onClick={onSignIn}>Sign in</button>
+        <button className="btn-primary" onClick={onSignIn} disabled={!authReady}>Sign in</button>
       )}
     </header>
   )

@@ -1,5 +1,8 @@
 *:Zone.Identifier
 node_modules/
+.venv/
+venv/
+__pycache__/
 .env
 .env.local
 backend/serviceAccountKey.json

@@ -1,105 +1,121 @@
-// frontend/src/App.jsx
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
-import { auth, db, signInWithGoogle, logout } from './firebase'
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  serverTimestamp
-} from 'firebase/firestore'
-import './styles/app.css'
+
+import { api } from './api'
 import Header from './components/Header'
-import NoteList from './components/NoteList'
 import NoteForm from './components/NoteForm'
+import NoteList from './components/NoteList'
+import { auth, firebaseConfigError, logout, signInWithGoogle } from './firebase'
+import './styles/app.css'
 
 export default function App() {
   const [user, setUser] = useState(null)
   const [notes, setNotes] = useState([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  // 🔹 监听登录状态变化
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u)
-      setNotes([])
-      setError('')
-      if (!u) setLoading(false)
-    })
-    return unsubscribe
+  const loadNotes = useCallback(async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const data = await api.getNotes()
+      setNotes(data.notes)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  // 🔹 Firestore 实时监听（仅在登录后）
   useEffect(() => {
-    if (!user) return
-    setLoading(true)
+    if (!auth) {
+      setError(firebaseConfigError)
+      setLoading(false)
+      return undefined
+    }
 
-    const q = query(
-      collection(db, 'notes'),
-      where('uid', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    )
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser)
+      setNotes([])
+      setError('')
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const fetched = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-        setNotes(fetched)
-        setLoading(false)
-      },
-      (err) => {
-        console.error(err)
-        setError(err.message)
+      if (currentUser) {
+        loadNotes()
+      } else {
         setLoading(false)
       }
-    )
+    })
 
     return unsubscribe
-  }, [user])
+  }, [loadNotes])
+
+  async function handleSignIn() {
+    setError('')
+
+    try {
+      await signInWithGoogle()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
 
   async function addNote(text) {
+    setSaving(true)
+    setError('')
+
     try {
-      await addDoc(collection(db, 'notes'), {
-        uid: user.uid,
-        text,
-        createdAt: serverTimestamp(),
-        localTime: Date.now(),
-      })
-    } catch (e) {
-      setError(e.message)
+      const data = await api.addNote(text)
+      setNotes((current) => [data.note, ...current])
+    } catch (err) {
+      setError(err.message)
+      throw err
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function deleteNote(id) {
+    setError('')
+
+    try {
+      await api.deleteNote(id)
+      setNotes((current) => current.filter((note) => note.id !== id))
+    } catch (err) {
+      setError(err.message)
     }
   }
 
   return (
-    <div className="container">
-      <Header user={user} onSignIn={signInWithGoogle} onSignOut={logout} />
+    <main className="app-shell">
+      <Header
+        user={user}
+        authReady={Boolean(auth)}
+        onSignIn={handleSignIn}
+        onSignOut={logout}
+      />
 
-      {!user ? (
-        <div className="login-hint">
-          <p>Sign in with Google to start writing your personal notes securely in Firestore.</p>
-          <button className="btn-primary" onClick={signInWithGoogle}>
+      {user ? (
+        <section className="notes-panel">
+          <NoteForm onAdd={addNote} loading={saving} />
+          {loading ? (
+            <p className="muted-message">Loading notes...</p>
+          ) : (
+            <NoteList notes={notes} onDelete={deleteNote} />
+          )}
+        </section>
+      ) : (
+        <section className="login-panel">
+          <h2>Your notes, available after sign in.</h2>
+          <p>Use Google sign-in to access your private notebook.</p>
+          <button className="btn-primary" onClick={handleSignIn} disabled={!auth}>
             Sign in with Google
           </button>
-        </div>
-      ) : (
-        <>
-          <NoteForm onAdd={addNote} />
-          {loading ? (
-            <p style={{ textAlign: 'center', color: '#666' }}>Loading your notes...</p>
-          ) : (
-            <NoteList notes={notes} />
-          )}
-        </>
+        </section>
       )}
 
-      {error && <p className="error-banner">⚠️ {error}</p>}
-    </div>
+      {error && <p className="error-banner" role="alert">{error}</p>}
+    </main>
   )
 }

@@ -1,768 +1,240 @@
-# 🧠 Personal Notebook App — 全栈应用 (Vercel 部署版)# 🧠 GreatUniHackDemo — React + FastAPI + Firebase (Auth + Firestore)
+# Personal Notebook
 
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=111111)
+![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=ffffff)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=ffffff)
+![Firebase](https://img.shields.io/badge/Firebase-Auth%20%2B%20Firestore-FFCA28?logo=firebase&logoColor=111111)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=ffffff)
 
+Personal Notebook is a full-stack note-taking application built with React, FastAPI, Firebase Authentication, and Firestore. It uses Google sign-in on the frontend and verifies Firebase ID tokens on the backend before reading or writing user-owned notes.
 
-一个**现代化的全栈笔记应用**，完全部署在 Vercel 上。A **minimal full-stack demo** for hackathons and rapid prototyping.  
+The project is intentionally small, but structured like a production-ready GitHub repository: clear frontend/backend boundaries, environment-based configuration, typed API schemas, deployment notes, and security guidance.
 
-It integrates a modern, production-style stack:
+## Features
 
-- 🪄 **前端**: React (Vite)
+- Google sign-in with Firebase Authentication
+- Authenticated note creation, listing, and deletion
+- User-scoped Firestore records enforced by backend token verification
+- Environment-based configuration for local development and deployment
+- FastAPI OpenAPI documentation at `/docs`
+- Clean monorepo-style structure with separate frontend and backend apps
 
-- ⚙️ **后端**: Vercel Serverless Functions (FastAPI)- 🪄 **Frontend**: React (Vite)
+## Tech Stack
 
-- 🔐 **认证 + 数据库**: Firebase (Google Sign-In + Firestore)- ⚙️ **Backend**: FastAPI
+| Layer | Technology | Purpose |
+| --- | --- | --- |
+| Frontend | React 18 | Component-based user interface |
+| Frontend tooling | Vite 7 | Local dev server and production bundling |
+| Authentication | Firebase Authentication | Google OAuth sign-in and ID tokens |
+| Backend | FastAPI | HTTP API, routing, validation, and OpenAPI docs |
+| Backend runtime | Python 3.12 | API runtime |
+| Data store | Cloud Firestore | Per-user note storage |
+| Backend SDK | Firebase Admin SDK | Token verification and privileged Firestore access |
+| Deployment targets | Vercel, Netlify, Railway, Render, Fly.io | Static frontend and Python API hosting |
 
-- ☁️ **部署**: 完全运行在 Vercel（包括前端和后端）- 🔐 **Auth + Database**: Firebase (Google Sign-In + Firestore)
+## Architecture
 
-- 💻 **Local Dev**: Windows + WSL2 friendly
-
----- ☁️ **Deploy**: Vercel (frontend) + Railway / Render (backend)
-
-
-
-## ✨ 特性> ⚠️ Always use **your own Firebase project** and **never commit private credentials**.
-
-
-
-- ✅ Google 社交登录## 🧩 System Requirements
-
-- ✅ 用户个人笔记管理
-
-- ✅ 实时数据持久化到 Firestore| Tool | Version (tested) |
-
-- ✅ 全栈部署在同一平台（Vercel）|------|------------------|
-
-- ✅ Serverless 架构，按需扩展| Node.js | ≥ 20.x |
-
-- ✅ 零配置 CORS（同域部署）| npm | ≥ 10.x |
-
-| Python | ≥ 3.12 |
-
----| Firebase project | Enabled Firestore + Auth |
-
-| OS | Ubuntu / WSL2 / macOS |
-
-## 📁 项目结构
-
----
-
+```mermaid
+flowchart LR
+  browser["Browser / React App"] --> auth["Firebase Authentication"]
+  browser --> api["FastAPI Backend"]
+  api --> admin["Firebase Admin SDK"]
+  admin --> firestore["Cloud Firestore"]
+  auth --> browser
 ```
 
-personal-notebook-app/## 📁 Project Structure
+The frontend signs users in with Firebase Authentication and sends the Firebase ID token to the FastAPI backend in an `Authorization: Bearer <token>` header. The backend verifies the token with Firebase Admin SDK and scopes all note operations to the authenticated user ID.
 
-├── api/                      # Vercel Serverless Functions (后端)
+## Project Structure
 
-│   ├── index.py             # FastAPI 主入口```
+```text
+personal-notebook-app/
+├── backend/
+│   ├── app/
+│   │   ├── main.py          # FastAPI app setup
+│   │   ├── firebase.py      # Firebase Admin initialization
+│   │   ├── dependencies.py  # Authentication dependencies
+│   │   ├── schemas.py       # Pydantic API schemas
+│   │   └── routers/
+│   │       ├── health.py
+│   │       └── notes.py
+│   ├── requirements.txt
+│   ├── Procfile
+│   └── railway.json
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── App.jsx
+│   │   ├── api.js
+│   │   └── firebase.js
+│   ├── package.json
+│   └── vite.config.js
+├── docs/
+│   ├── deployment.md
+│   └── firebase.md
+├── .env.example
+├── package.json
+└── requirements.txt
+```
 
-│   ├── firebase_config.py   # Firebase 初始化
+## Prerequisites
 
-│   └── routes/              # API 路由GreatUniHackDemo/
+- Node.js 20 or newer
+- npm 10 or newer
+- Python 3.12 or newer
+- A Firebase project with Authentication and Firestore enabled
 
-├── src/                      # React 前端源码├─ frontend/            # React app (Vite)
+## Getting Started
 
-│   ├── App.jsx│  ├─ src/
+### 1. Clone the repository
 
-│   ├── api.js               # API 调用│  │   ├─ components/
-
-│   ├── firebase.js          # Firebase 配置│  │   │   ├─ Header.jsx
-
-│   └── components/│  │   │   ├─ NoteList.jsx
-
-├── index.html               # HTML 入口│  │   │   └─ NoteForm.jsx
-
-├── package.json             # Node 依赖│  │   ├─ styles/
-
-├── vite.config.js           # Vite 配置│  │   │   └─ app.css
-
-├── vercel.json              # Vercel 配置│  │   ├─ App.jsx        # UI + Firebase login
-
-├── requirements.txt         # Python 依赖│  │   ├─ api.js         # API calls to FastAPI
-
-└── serviceAccountKey.json   # Firebase 凭证（勿提交）│  │   ├─ firebase.js    # Firebase config
-
-```│  │   └─ main.jsx
-
-│  ├─ index.html
-
----│  ├─ package.json
-
-│  └─ vite.config.js
-
-## 🚀 快速开始└─ backend/             # FastAPI backend
-
-├─ main.py
-
-### 1. Firebase 设置├─ requirements.txt
-
-├─ .env               # (optional) FIREBASE_CREDENTIALS_PATH
-
-1. 访问 [Firebase Console](https://console.firebase.google.com)└─ serviceAccountKey.json 🔒
-
-2. 创建项目
-
-3. 启用 **Firestore Database** (Native 模式)```
-
-4. 启用 **Authentication** → Google Sign-in
-
-5. 下载服务账号密钥 → `serviceAccountKey.json`---
-
-6. 获取前端 Firebase 配置
-
-## ☁️ 1) Firebase Setup (one-time)
-
-### 2. 本地开发
-
-1. Go to **[Firebase Console](https://console.firebase.google.com)** → Create a new project.  
-
-```bash2. Enable **Authentication → Sign-in method → Google**.  
-
-# 克隆仓库3. Create a **Web App** → copy config → paste into:
-
-git clone <your-repo-url>```
-
+```bash
+git clone <repository-url>
 cd personal-notebook-app
-
-frontend/src/firebase.js
-
-# 安装依赖
-
-npm install````
-
-pip install -r requirements.txt4. Generate a **Service Account Key**  
-
-- Go to Project Settings → *Service Accounts* → *Generate New Private Key*  
-
-# 配置环境变量- Rename to `serviceAccountKey.json`  
-
-cp .env.example .env- Place it under `backend/serviceAccountKey.json`
-
-# 编辑 .env 填入 Firebase 配置5. Enable **Cloud Firestore (Native mode)**.
-
-
-
-# 方式 1: 使用 Vercel CLI（推荐）---
-
-npm i -g vercel
-
-vercel dev## 🧠 2) Local Development
-
-
-
-# 方式 2: 分别启动### 🐍 Backend (FastAPI)
-
-npm run dev  # 前端: http://localhost:5173> 💡 Recommended to run in **WSL2 (Ubuntu)**
-
 ```
+
+### 2. Configure environment variables
+
+Copy the example environment file:
 
 ```bash
-
-### 3. 部署到 Vercel$ cd backend
-
-$ python -m venv .venv
-
-#### 手动部署$ source .venv/bin/activate   # On PowerShell: .venv\Scripts\Activate.ps1
-
-$ pip install -r requirements.txt
-
-1. 访问 [Vercel.com](https://vercel.com)
-
-2. 导入 GitHub 仓库# Optionally: create a .env file
-
-3. 配置环境变量（见下方）echo "FIREBASE_CREDENTIALS_PATH=backend/serviceAccountKey.json" > .env
-
-4. 点击 Deploy
-
-# Run server
-
-### 4. 配置 Vercel 环境变量$ uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-````
-
-在 Vercel Dashboard → Settings → Environment Variables 添加：
-
-Visit: [http://127.0.0.1:8000](http://127.0.0.1:8000)
-
-```env
-
-# Firebase 后端凭证Expected output:
-
-FIREBASE_CREDENTIALS_JSON={"type":"service_account",...}
-
-```json
-
-# Firebase 前端配置{"ok": true, "message": "🚀 Backend running successfully!"}
-
-VITE_FIREBASE_API_KEY=your-api-key```
-
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-
-VITE_FIREBASE_PROJECT_ID=your-project-id---
-
-VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789### ⚛️ Frontend (React + Vite)
-
-VITE_FIREBASE_APP_ID=1:123:web:abc
-
-```> 💡 Run in a separate terminal
-
-
-
-**获取 FIREBASE_CREDENTIALS_JSON:**```bash
-
-```bash$ cd ~/Projects/greatunihackdemo/frontend
-
-cat serviceAccountKey.json | python -m json.tool --compact$ npm install
-
-```$ npm run dev
-
+cp .env.example .env
 ```
 
----
+Fill in the Firebase Web App values and backend credential settings. Vite is configured to read `.env` from the repository root.
 
-Then open → **[http://localhost:5173](http://localhost:5173)**
+For local backend development, place your Firebase service account file at:
 
-## 🏗️ 架构说明
-
----
-
+```text
+backend/serviceAccountKey.json
 ```
 
-Vercel 平台## 🔐 3) How It Works
+This file is ignored by Git and must never be committed.
 
-├── 静态托管 (/)           → React SPA
+For detailed Firebase setup instructions, see [docs/firebase.md](docs/firebase.md).
 
-├── Serverless API (/api)  → FastAPI**Authentication flow**
+### 3. Install dependencies
 
-└── Firebase 集成          → Auth + Firestore
+Install frontend dependencies:
 
-```1. User clicks **Sign in with Google**
-
-2. Firebase Auth returns an **ID token**
-
-### URL 路由3. Frontend sends:
-
-
-
-| 路径 | 说明 |   ```
-
-|------|------|   Authorization: Bearer <idToken>
-
-| `/` | 前端应用 |   ```
-
-| `/api/` | API 状态 |4. FastAPI verifies token via **Firebase Admin SDK** → extracts UID
-
-| `/api/notes` | 笔记 CRUD |
-
-| `/api/test` | Firestore 测试 |**Data flow**
-
-
-
----* `GET /notes` → returns user’s notes
-
-* `POST /notes` → adds `{ uid, text, createdAt }` to Firestore
-
-## 📖 文档
-
-Data model:
-
-- 📘 [**VERCEL_DEPLOYMENT.md**](./VERCEL_DEPLOYMENT.md) - 详细部署指南
-
-- 📝 [**CHANGELOG.md**](./CHANGELOG.md) - 变更日志```
-
-- ⚙️ [**.env.example**](./.env.example) - 环境变量模板notes (collection)
-
- ├─ <noteID>
-
---- │   ├─ uid: "firebase_uid_12345"
-
- │   ├─ text: "Hello GreatUniHack!"
-
-## 🔒 安全配置 │   └─ createdAt: 1730886000000
-
-```
-
-### Firebase Authorized Domains
-
----
-
-添加你的 Vercel 域名：
-
-```## ⚠️ 4) Common Issues & Fixes
-
-your-app.vercel.app
-
-your-app-*.vercel.app### 🔸 `400 The query requires an index`
-
-```
-
-Firestore needs a **composite index** for:
-
-### Firestore 安全规则
-
-```python
-
-```javascript.where("uid", "==", uid).order_by("createdAt")
-
-rules_version = '2';```
-
-service cloud.firestore {
-
-  match /databases/{database}/documents {✅ Fix:
-
-    match /notes/{noteId} {Click the **“Create index”** link shown in the error → enable it → wait a minute → refresh page.
-
-      allow read, write: if request.auth != null && 
-
-                           request.auth.uid == resource.data.uid;Alternative (no ordering):
-
-      allow create: if request.auth != null && 
-
-                      request.auth.uid == request.resource.data.uid;```python
-
-    }docs = db.collection("notes").where("uid", "==", uid).stream()
-
-  }```
-
-}
-
-```---
-
-
-
----### 🔸 CORS Errors
-
-
-
-## 🧪 测试If you see:
-
-
-
-### 测试 API```
-
-CORS Missing Allow Origin
-
-```bash```
-
-curl https://your-app.vercel.app/api/
-
-# 返回: {"ok": true, "message": "🚀 Backend running on Vercel!"}Ensure backend has:
-
-
-
-curl https://your-app.vercel.app/api/test```python
-
-# 返回: {"ok": true, "message": "Firestore connected ✅"}from fastapi.middleware.cors import CORSMiddleware
-
-```
-
-app.add_middleware(
-
-### 测试前端    CORSMiddleware,
-
-    allow_origins=["*"],  # For local dev
-
-1. 访问 `https://your-app.vercel.app`    allow_credentials=True,
-
-2. 点击 "Sign in with Google"    allow_methods=["*"],
-
-3. 添加笔记    allow_headers=["*"],
-
-4. 刷新页面，验证持久化)
-
-```
-
----
-
----
-
-## ⚠️ 常见问题
-
-## 🚀 5) Quick Test Run
-
-### Q: API 返回 500 错误
-
-**A**: 检查 `FIREBASE_CREDENTIALS_JSON` 环境变量格式是否正确（必须是一行 JSON）```bash
-
-# 1️⃣ Start backend
-
-### Q: 无法登录uvicorn main:app --reload --port 8000
-
-**A**: 确认所有 `VITE_FIREBASE_*` 环境变量已配置，并在 Firebase Console 添加了 Authorized Domain
-
-# 2️⃣ Start frontend
-
-### Q: 本地开发如何测试 API？npm run dev
-
-**A**: 使用 `vercel dev` 命令，它会模拟 Vercel 环境
-
-# 3️⃣ Open
-
----http://localhost:5173
-
-```
-
-## 🎯 技术栈
-
-Then:
-
-| 层 | 技术 |
-
-|----|------|* Sign in with Google
-
-| 前端 | React 18, Vite 7 |* Add a note
-
-| 后端 | FastAPI (Serverless) |* It instantly syncs with Firestore 🔥
-
-| 数据库 | Firestore |
-
-| 认证 | Firebase Auth |---
-
-| 部署 | Vercel |
-
-| 语言 | JavaScript, Python 3.9+ |## ☁️ 6) Deployment Guide
-
-
-
----### 📋 准备工作
-
-
-
-## 📊 优势在部署之前，确保你已经：
-
-1. ✅ 创建并配置了 Firebase 项目
-
-### vs. 传统部署（前后端分离）2. ✅ 下载了 `serviceAccountKey.json` 文件
-
-3. ✅ 在 Firebase Console 中启用了 Firestore 和 Google 认证
-
-| 特性 | Vercel 全栈 | 传统方式 |4. ✅ 记录了前端的 Firebase 配置信息
-
-|------|------------|----------|
-
-| 部署平台 | 1 个 (Vercel) | 2+ 个 (Vercel + Railway/Render) |---
-
-| CORS 配置 | ✅ 无需（同域） | ❌ 需要配置 |
-
-| 成本 | 💰 更低 | 💰💰 更高 |### 🚂 后端部署到 Railway
-
-| 维护 | ⭐ 简单 | ⭐⭐ 复杂 |
-
-| 冷启动 | ⚡ 快 | ⏱️ 较慢 |#### 步骤 1: 准备 Railway 项目
-
-
-
----1. 访问 [Railway.app](https://railway.app) 并登录
-
-2. 点击 **"New Project"** → **"Deploy from GitHub repo"**
-
-## 🚀 持续部署3. 选择你的仓库（确保已经推送到 GitHub）
-
-4. Railway 会自动检测到 Python 项目
-
-- 推送到 `main` → 自动部署生产环境
-
-- 创建 PR → 自动生成预览部署#### 步骤 2: 配置环境变量
-
-- 零配置 CD 流程
-
-在 Railway 项目的 **Variables** 标签页中添加：
-
----
-
-```env
-
-## 📝 许可证ALLOWED_ORIGINS=https://your-app.vercel.app,http://localhost:5173
-
-PORT=8000
-
-MIT License © 2025```
-
-
-
----**注意**: 稍后将 `https://your-app.vercel.app` 替换为实际的 Vercel 域名
-
-
-
-**🎉 现在就部署你的应用！只需 5 分钟！**#### 步骤 3: 上传 Firebase 服务账号密钥
-
-
-Railway 有两种方式上传敏感文件：
-
-**方法 A: 通过环境变量（推荐）**
 ```bash
-# 将 serviceAccountKey.json 内容转为 base64
-cat backend/serviceAccountKey.json | base64 -w 0
-
-# 在 Railway Variables 中添加：
-FIREBASE_CREDENTIALS_BASE64=<base64编码的内容>
+npm run install:frontend
 ```
 
-然后修改 `backend/main.py` 中的 `init_firebase()` 函数支持 base64 解码。
+Create and activate a Python virtual environment:
 
-**方法 B: 使用 Railway Volumes（更简单）**
-1. 在 Railway 项目设置中，进入 **Settings** → **Variables**
-2. 点击 **"Raw Editor"**
-3. 将整个 `serviceAccountKey.json` 的内容粘贴为多行变量（不推荐生产环境）
-
-**推荐方法：直接在代码中通过环境变量传递 JSON**
-```python
-import json
-import os
-from firebase_admin import credentials
-
-# 在 init_firebase() 中添加：
-firebase_creds_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
-if firebase_creds_json:
-    cred_dict = json.loads(firebase_creds_json)
-    cred = credentials.Certificate(cred_dict)
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
 ```
 
-然后在 Railway Variables 中添加：
-```
-FIREBASE_CREDENTIALS_JSON={"type":"service_account","project_id":"..."}
-```
-（完整的 serviceAccountKey.json 内容作为一行 JSON 字符串）
+PowerShell activation on Windows:
 
-#### 步骤 4: 配置部署设置
-
-Railway 会自动使用项目中的配置文件：
-- ✅ `runtime.txt` - 指定 Python 版本
-- ✅ `Procfile` - 指定启动命令
-- ✅ `railway.json` - Railway 特定配置
-
-#### 步骤 5: 部署
-
-1. Railway 会自动触发部署
-2. 等待构建完成（约 2-3 分钟）
-3. 部署成功后，复制生成的 URL（例如：`https://your-app.railway.app`）
-
-#### 步骤 6: 测试后端
-
-访问你的 Railway URL：
-```
-https://your-app.railway.app/
+```powershell
+.\.venv\Scripts\Activate.ps1
 ```
 
-应该看到：
+### 4. Start the development servers
+
+Start the backend:
+
+```bash
+npm run dev:backend
+```
+
+Start the frontend in another terminal:
+
+```bash
+npm run dev:frontend
+```
+
+Default local URLs:
+
+| Service | URL |
+| --- | --- |
+| Frontend | http://localhost:5173 |
+| Backend | http://localhost:8000 |
+| API docs | http://localhost:8000/docs |
+| Health check | http://localhost:8000/health |
+
+## Environment Variables
+
+| Variable | Scope | Required | Description |
+| --- | --- | --- | --- |
+| `VITE_API_BASE_URL` | Frontend | Yes | Base URL for the FastAPI backend |
+| `VITE_FIREBASE_API_KEY` | Frontend | Yes | Firebase Web App API key |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Frontend | Yes | Firebase Auth domain |
+| `VITE_FIREBASE_PROJECT_ID` | Frontend | Yes | Firebase project ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Frontend | Yes | Firebase storage bucket |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Frontend | Yes | Firebase messaging sender ID |
+| `VITE_FIREBASE_APP_ID` | Frontend | Yes | Firebase Web App ID |
+| `ALLOWED_ORIGINS` | Backend | Yes | Comma-separated list of allowed frontend origins |
+| `FIREBASE_CREDENTIALS_PATH` | Backend | Local only | Path to a local service account JSON file |
+| `FIREBASE_CREDENTIALS_JSON` | Backend | Production recommended | Service account JSON as a single-line string |
+
+## API Reference
+
+All note endpoints require a Firebase ID token:
+
+```http
+Authorization: Bearer <firebase-id-token>
+```
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/health` | Check whether the API is running |
+| `GET` | `/notes` | List notes for the authenticated user |
+| `POST` | `/notes` | Create a note for the authenticated user |
+| `DELETE` | `/notes/{note_id}` | Delete one of the authenticated user's notes |
+
+Create note request body:
+
 ```json
-{"ok": true, "message": "🚀 Backend running successfully!"}
-```
-
----
-
-### ▲ 前端部署到 Vercel
-
-#### 步骤 1: 准备 Vercel 项目
-
-1. 访问 [Vercel.com](https://vercel.com) 并登录
-2. 点击 **"New Project"**
-3. 导入你的 GitHub 仓库
-4. Vercel 会自动检测到 Vite 项目
-
-#### 步骤 2: 配置项目设置
-
-在项目设置中：
-- **Framework Preset**: Vite
-- **Root Directory**: `frontend`
-- **Build Command**: `npm run build`
-- **Output Directory**: `dist`
-
-这些设置已经在 `frontend/vercel.json` 中配置好了。
-
-#### 步骤 3: 配置环境变量
-
-在 Vercel 项目的 **Settings** → **Environment Variables** 中添加：
-
-```env
-# 后端 API URL（使用你的 Railway URL）
-VITE_API_BASE=https://your-app.railway.app
-
-# Firebase 配置（从 Firebase Console 获取）
-VITE_FIREBASE_API_KEY=your-api-key
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456789:web:abcdef
-```
-
-**获取 Firebase 配置的步骤：**
-1. 打开 [Firebase Console](https://console.firebase.google.com)
-2. 选择你的项目
-3. 进入 **Project Settings** → **General**
-4. 滚动到 **"Your apps"** 部分
-5. 点击你的 Web App，复制配置信息
-
-#### 步骤 4: 部署
-
-1. 点击 **"Deploy"**
-2. Vercel 会自动构建和部署（约 1-2 分钟）
-3. 部署成功后，你会获得一个 URL（例如：`https://your-app.vercel.app`）
-
-#### 步骤 5: 更新后端 CORS 设置
-
-现在你有了 Vercel 的 URL，需要更新 Railway 后端的 `ALLOWED_ORIGINS` 环境变量：
-
-1. 返回 Railway 项目
-2. 进入 **Variables**
-3. 更新 `ALLOWED_ORIGINS`：
-   ```
-   ALLOWED_ORIGINS=https://your-app.vercel.app,https://your-app-git-main-yourusername.vercel.app
-   ```
-4. Railway 会自动重新部署
-
-**提示**: Vercel 为每个分支创建独立的预览 URL，你可能需要添加多个域名。
-
-#### 步骤 6: 测试应用
-
-1. 访问你的 Vercel URL
-2. 点击 **"Sign in with Google"**
-3. 添加一条笔记
-4. 刷新页面，确认笔记已保存
-
----
-
-### 🔧 部署后的常见问题
-
-#### ❌ CORS 错误
-**问题**: 前端无法连接后端，浏览器显示 CORS 错误
-
-**解决方案**:
-1. 检查 Railway 的 `ALLOWED_ORIGINS` 是否包含你的 Vercel 域名
-2. 确保没有遗漏 `https://` 前缀
-3. Vercel 可能有多个域名（主域名 + 预览域名），都需要添加
-
-#### ❌ Firebase 认证失败
-**问题**: 无法登录或显示 "Invalid token"
-
-**解决方案**:
-1. 确认 Vercel 的 Firebase 环境变量配置正确
-2. 检查 Railway 是否成功加载了 `serviceAccountKey.json`
-3. 在 Firebase Console 中检查 **Authorized domains**，添加你的 Vercel 域名
-
-#### ❌ Railway 构建失败
-**问题**: Railway 部署时出错
-
-**解决方案**:
-1. 检查 `requirements.txt` 是否正确
-2. 确保 `runtime.txt` 指定的 Python 版本可用（推荐 3.12）
-3. 查看 Railway 的构建日志，找到具体错误信息
-
-#### ❌ Vercel 构建失败
-**问题**: Vercel 构建时出错
-
-**解决方案**:
-1. 确保 `frontend` 目录被正确设置为 Root Directory
-2. 检查 `package.json` 中的依赖是否完整
-3. 查看 Vercel 的构建日志
-
----
-
-### 🎯 部署检查清单
-
-#### 后端 (Railway) ✅
-- [ ] 项目已连接到 GitHub
-- [ ] `ALLOWED_ORIGINS` 包含 Vercel 域名
-- [ ] Firebase 凭证已配置（JSON 或文件）
-- [ ] 部署成功，可以访问 `/` 端点
-- [ ] `/test` 端点返回 Firestore 连接成功
-
-#### 前端 (Vercel) ✅
-- [ ] Root Directory 设置为 `frontend`
-- [ ] `VITE_API_BASE` 指向 Railway URL
-- [ ] 所有 Firebase 环境变量已配置
-- [ ] 部署成功，页面可以正常加载
-- [ ] Google 登录功能正常
-- [ ] 可以成功创建和读取笔记
-
-#### Firebase ✅
-- [ ] Firestore 已启用
-- [ ] Google 认证已启用
-- [ ] Authorized domains 包含 Vercel 域名
-- [ ] Firestore 规则已配置（建议按用户隔离数据）
-
----
-
-### 📊 推荐的 Firestore 安全规则
-
-部署后，更新 Firestore 规则以保护用户数据：
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /notes/{noteId} {
-      // 只允许用户读写自己的笔记
-      allow read, write: if request.auth != null && 
-                           request.auth.uid == resource.data.uid;
-      // 允许用户创建笔记（必须包含正确的 uid）
-      allow create: if request.auth != null && 
-                      request.auth.uid == request.resource.data.uid;
-    }
-  }
+{
+  "text": "Write something worth remembering."
 }
 ```
 
-在 Firebase Console → Firestore Database → Rules 中更新。
+## Scripts
 
----
+Root-level scripts:
 
-### 🚀 持续部署
+| Command | Description |
+| --- | --- |
+| `npm run install:frontend` | Install frontend dependencies |
+| `npm run dev:frontend` | Start the Vite development server |
+| `npm run build:frontend` | Build the frontend for production |
+| `npm run preview:frontend` | Preview the production frontend build |
+| `npm run dev:backend` | Start the FastAPI backend with reload |
 
-现在你的应用已配置为持续部署：
+Backend can also be started directly:
 
-- **前端**: 每次推送到 `main` 分支，Vercel 自动部署
-- **后端**: 每次推送到 `main` 分支，Railway 自动部署
-- **预览**: Vercel 为每个 PR 创建预览部署
+```bash
+uvicorn app.main:app --reload --app-dir backend
+```
 
----
+## Deployment
 
-## 🔒 7) Security Checklist
+Recommended deployment model:
 
-| ✅ Action                                 | Description                         |
-| ---------------------------------------- | ----------------------------------- |
-| 🔑 Don’t commit `serviceAccountKey.json` | Add to `.gitignore`                 |
-| 🧩 Restrict Firestore rules              | Each user sees only their own notes |
-| 🌍 Restrict CORS origins                 | Use your production domain only     |
-| 🧠 Use `.env` files                      | Keep secrets out of code            |
+- Deploy `frontend/` as a static site.
+- Deploy `backend/` as a Python/FastAPI service.
+- Use Firebase for Authentication and Firestore.
 
----
+See [docs/deployment.md](docs/deployment.md) for platform-specific guidance.
 
-## 🧱 8) Tech Summary
+## Security
 
-| Layer      | Tech                    | Purpose               |
-| ---------- | ----------------------- | --------------------- |
-| Frontend   | React (Vite)            | UI + Firebase Auth    |
-| Backend    | FastAPI                 | API + Auth validation |
-| Database   | Firestore               | Cloud-hosted NoSQL DB |
-| Auth       | Firebase Auth (Google)  | Secure login          |
-| Dev Env    | WSL2 + Node.js + Python | Local workflow        |
-| Deployment | Vercel + Railway        | Hosting               |
+- Do not commit `.env`, `backend/serviceAccountKey.json`, or any Firebase service account credential.
+- Firebase Web App config is safe to expose in the browser, but Firebase service account credentials are backend-only secrets.
+- Set `ALLOWED_ORIGINS` to trusted production domains in deployed environments.
+- Review [SECURITY.md](SECURITY.md) before publishing or accepting external contributions.
 
----
+## Contributing
 
-## ✨ 9) Features
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
-* 🔐 Google sign-in with Firebase
-* 📝 Per-user personal notes
-* ☁️ Notes persisted in Firestore
-* ⚙️ FastAPI backend with token verification
-* 💻 Works seamlessly on Windows + WSL2
-* 🚀 Deployable in minutes
+## License
 
----
-
-## 🧭 10) Known Limitations / Future Improvements
-
-* ⏱️ Token validation timing issues (slight delay after login)
-* 💬 Real-time sync (Firestore listener) not yet implemented
-* 📱 Responsive design can be improved
-* 🧩 Better error handling / retry system (planned)
-
----
-
-## 👤 Author & License
-
-Made for **GreatUniHack** 🏫
-MIT License · © 2025
+No license has been added yet. Add a license before distributing this project publicly.
