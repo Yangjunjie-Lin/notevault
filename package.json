@@ -1,14 +1,14 @@
 {
   "name": "notevault",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Full-stack note-taking application built with React, FastAPI, Firebase Authentication, and Firestore.",
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=20",
+    "node": ">=20 <23",
     "npm": ">=10",
-    "python": ">=3.12"
+    "python": ">=3.12 <3.14"
   },
   "keywords": [
     "react",
@@ -22,11 +22,15 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "build:frontend": "npm --prefix frontend run build",
     "preview:frontend": "npm --prefix frontend run preview",
-    "dev:backend": "uvicorn app.main:app --reload --app-dir backend",
+    "dev:backend": "python -m uvicorn app.main:app --reload --app-dir backend",
     "install:frontend": "npm --prefix frontend install",
     "test:frontend": "npm --prefix frontend run test",
     "test:coverage": "npm --prefix frontend run test:coverage",
     "test:e2e": "npm --prefix frontend run test:e2e",
+    "test:e2e:chromium": "npm --prefix frontend run test:e2e:chromium",
+    "test:e2e:firefox": "npm --prefix frontend run test:e2e:firefox",
+    "test:e2e:webkit": "npm --prefix frontend run test:e2e:webkit",
+    "test:firebase-integration": "firebase emulators:exec --only firestore --project notevault-test \"python -m pytest -m integration backend/tests/integration\"",
     "typecheck:frontend": "npm --prefix frontend run typecheck",
     "test:backend": "python -m pytest backend/tests",
     "test:backend:coverage": "python -m pytest --cov=backend/app --cov-report=term-missing --cov-fail-under=85 backend/tests",
@@ -34,6 +38,10 @@
     "test": "npm run test:frontend && npm run test:backend",
     "contract:generate": "python backend/scripts/export_openapi.py && npm --prefix frontend run contract:generate",
     "contract:check": "npm run contract:generate && git diff --exit-code -- backend/openapi.json frontend/src/features/notes/generated.ts",
-    "check": "npm run typecheck:frontend && npm test && npm run test:coverage && npm run contract:check && npm run build:frontend"
+    "check": "npm run typecheck:frontend && npm run test:frontend && npm run test:coverage && npm run test:backend:coverage && npm run contract:check && npm run build:frontend",
+    "verify": "npm run check && npm run test:e2e && npm run test:firebase-integration"
+  },
+  "devDependencies": {
+    "firebase-tools": "^15.23.0"
   }
 }

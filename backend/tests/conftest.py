@@ -40,6 +40,7 @@ class FakeDocumentReference:
     def get(self):
         if self._collection.operation_error:
             raise self._collection.operation_error
+        self._collection.document_gets.append(self.id)
         return FakeSnapshot(self._collection, self.id, self._collection.documents.get(self.id))
 
     def delete(self):
@@ -54,20 +55,29 @@ class FakeDocumentReference:
 
 
 class FakeQuery:
-    def __init__(self, collection, filters=None, order_fields=None, page_limit=None, after_id=None):
+    def __init__(
+        self,
+        collection,
+        filters=None,
+        order_fields=None,
+        page_limit=None,
+        after_values=None,
+    ):
         self._collection = collection
         self._filters = filters or []
         self._order_fields = order_fields or []
         self._page_limit = page_limit
-        self._after_id = after_id
+        self._after_values = after_values
 
-    def where(self, field, operator, value):
+    def where(self, field=None, operator=None, value=None, *, filter=None):
+        if filter is not None:
+            field, operator, value = filter.field_path, filter.op_string, filter.value
         return FakeQuery(
             self._collection,
             [*self._filters, (field, operator, value)],
             self._order_fields,
             self._page_limit,
-            self._after_id,
+            self._after_values,
         )
 
     def order_by(self, field, direction=None):
@@ -76,7 +86,7 @@ class FakeQuery:
             self._filters,
             [*self._order_fields, (field, direction)],
             self._page_limit,
-            self._after_id,
+            self._after_values,
         )
 
     def limit(self, value):
@@ -85,16 +95,23 @@ class FakeQuery:
             self._filters,
             self._order_fields,
             value,
-            self._after_id,
+            self._after_values,
         )
 
-    def start_after(self, snapshot):
+    def start_after(self, document_fields):
+        if isinstance(document_fields, FakeSnapshot):
+            values = {
+                field: _sort_value((document_fields.id, document_fields.to_dict()), field)
+                for field, _ in self._order_fields
+            }
+        else:
+            values = dict(document_fields)
         return FakeQuery(
             self._collection,
             self._filters,
             self._order_fields,
             self._page_limit,
-            snapshot.id,
+            values,
         )
 
     def stream(self):
@@ -112,15 +129,24 @@ class FakeQuery:
             reverse = str(direction).upper().endswith("DESCENDING")
             items.sort(key=lambda item: _sort_value(item, field), reverse=reverse)
 
-        if self._after_id:
-            ids = [doc_id for doc_id, _ in items]
-            start = ids.index(self._after_id) + 1 if self._after_id in ids else len(items)
-            items = items[start:]
+        if self._after_values:
+            items = [item for item in items if self._is_after_cursor(item)]
 
         if self._page_limit is not None:
             items = items[: self._page_limit]
 
         return [FakeSnapshot(self._collection, doc_id, data) for doc_id, data in items]
+
+    def _is_after_cursor(self, item):
+        for field, direction in self._order_fields:
+            item_value = _sort_value(item, field)
+            cursor_value = self._after_values[field]
+            cursor_value = getattr(cursor_value, "id", cursor_value)
+            if item_value == cursor_value:
+                continue
+            descending = str(direction).upper().endswith("DESCENDING")
+            return item_value < cursor_value if descending else item_value > cursor_value
+        return False
 
 
 class FakeCollection:
@@ -128,6 +154,7 @@ class FakeCollection:
         self.documents = {}
         self._counter = 0
         self.operation_error = None
+        self.document_gets = []
 
     def add(self, data):
         if self.operation_error:
@@ -140,8 +167,8 @@ class FakeCollection:
     def document(self, doc_id):
         return FakeDocumentReference(self, doc_id)
 
-    def where(self, field, operator, value):
-        return FakeQuery(self).where(field, operator, value)
+    def where(self, field=None, operator=None, value=None, *, filter=None):
+        return FakeQuery(self).where(field, operator, value, filter=filter)
 
 
 def _sort_value(item, field):

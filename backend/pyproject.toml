@@ -1,8 +1,8 @@
 [project]
 name = "notevault-api"
-version = "1.0.0"
+version = "1.1.0"
 description = "FastAPI backend for NoteVault"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 dependencies = [
   "fastapi==0.115.0",
   "uvicorn[standard]==0.30.6",
@@ -12,3 +12,9 @@ dependencies = [
 
 [tool.vercel]
 entrypoint = "app.main:app"
+
+[tool.pytest.ini_options]
+addopts = "-m 'not integration'"
+markers = [
+  "integration: requires the local Firestore Emulator",
+]

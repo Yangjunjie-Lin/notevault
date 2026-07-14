@@ -23,6 +23,7 @@ Use deployment platform environment variables for production secrets. Prefer `FI
 Use a unique random `CURSOR_SIGNING_KEY` of at least 32 characters in production. Do not reuse Firebase credentials as an application signing key.
 
 On Vercel serverless, the in-memory rate limiter is best-effort per instance and must not be described as a distributed global rate limit.
+Read and write limits are separate, keyed only by verified UID, and never store bearer tokens. A `429` includes `Retry-After`, but independent serverless instances do not share counters.
 
 ## Authentication Model
 
@@ -31,3 +32,7 @@ The frontend obtains Firebase ID tokens through Firebase Authentication. The bac
 Cross-user and missing note IDs intentionally return the same 404. Request bodies reject extra fields, including `uid`.
 
 Playwright authentication is limited to Vite `e2e` mode and a separate test server module. A production build rejects the test-auth flag, and the production FastAPI entrypoint does not import the test server.
+
+Pagination cursors are versioned, length-bounded, HMAC-SHA256 signed, and bound to verified UID, mode, and filter fingerprint. Rotate `CURSOR_SIGNING_KEY` as a production secret; rotation intentionally invalidates short-lived in-memory cursors.
+
+User Markdown is rendered through `react-markdown` and `remark-gfm` with raw HTML disabled and the default safe URL transform. Do not add `rehype-raw`, `dangerouslySetInnerHTML`, token logging, or note-content logging.

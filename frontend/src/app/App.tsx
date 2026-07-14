@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import AppHeader from '../features/auth/components/AppHeader'
 import AuthLanding from '../features/auth/components/AuthLanding'
@@ -43,6 +43,8 @@ export default function App() {
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [pendingDiscard, setPendingDiscard] = useState<PendingDiscard | null>(null)
   const [statusMessage, setStatusMessage] = useState('')
+  const deleteTrigger = useRef<HTMLElement | null>(null)
+  const discardTrigger = useRef<HTMLElement | null>(null)
   const workspace = useNotes(user?.uid ?? null, filters)
 
   useEffect(() => subscribeToAuth(
@@ -97,23 +99,37 @@ export default function App() {
     }
   }
 
-  function requestSignOut() {
-    if (dirty) setPendingDiscard({ kind: 'signout' })
+  function requestSignOut(trigger: HTMLButtonElement) {
+    if (dirty) {
+      discardTrigger.current = trigger
+      setPendingDiscard({ kind: 'signout' })
+    }
     else void performSignOut()
   }
 
-  function requestEdit(note: Note) {
+  function requestEdit(note: Note, trigger: HTMLButtonElement) {
     if (editingNote?.id === note.id) return
-    if (dirty) setPendingDiscard({ kind: 'edit', note })
+    if (dirty) {
+      discardTrigger.current = trigger
+      setPendingDiscard({ kind: 'edit', note })
+    }
     else {
       setEditingNote(note)
       setDirty(false)
     }
   }
 
-  function requestCancelEditing() {
-    if (dirty) setPendingDiscard({ kind: 'cancel' })
+  function requestCancelEditing(trigger: HTMLButtonElement) {
+    if (dirty) {
+      discardTrigger.current = trigger
+      setPendingDiscard({ kind: 'cancel' })
+    }
     else setEditingNote(null)
+  }
+
+  function requestDelete(id: string, trigger: HTMLButtonElement) {
+    deleteTrigger.current = trigger
+    setConfirmId(id)
   }
 
   function confirmDiscard() {
@@ -234,7 +250,7 @@ export default function App() {
                       key={note.id}
                       note={note}
                       onEdit={requestEdit}
-                      onDelete={setConfirmId}
+                      onDelete={requestDelete}
                       onTagSelect={(tag) => setFilters({ q: '', tag })}
                     />
                   ))}
@@ -267,6 +283,7 @@ export default function App() {
         loading={deleting}
         onConfirm={confirmDelete}
         onCancel={() => { if (!deleting) setConfirmId(null) }}
+        returnFocus={deleteTrigger.current}
       />
       <ConfirmDialog
         open={pendingDiscard !== null}
@@ -276,6 +293,7 @@ export default function App() {
         confirmLabel="Discard changes"
         onConfirm={confirmDiscard}
         onCancel={() => setPendingDiscard(null)}
+        returnFocus={discardTrigger.current}
       />
     </div>
   )

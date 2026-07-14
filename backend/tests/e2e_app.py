@@ -9,6 +9,7 @@ from app.main import app
 from app.rate_limit import read_notes_limiter, write_notes_limiter
 from app.routers import notes as notes_router
 from tests.conftest import FakeFirestore
+from pydantic import BaseModel, Field
 
 
 database = FakeFirestore()
@@ -16,3 +17,34 @@ read_notes_limiter.reset()
 write_notes_limiter.reset()
 app.dependency_overrides[get_current_uid] = lambda: "e2e-user"
 notes_router.get_firestore_client = lambda: database
+
+
+class SeedRequest(BaseModel):
+    count: int = Field(ge=1, le=100)
+    prefix: str = Field(default="seed", min_length=1, max_length=32)
+    tag: str = Field(default="pages", min_length=1, max_length=32)
+
+
+@app.post("/__test__/reset")
+def reset_test_database():
+    global database
+    database = FakeFirestore()
+    read_notes_limiter.reset()
+    write_notes_limiter.reset()
+    return {"ok": True}
+
+
+@app.post("/__test__/seed")
+def seed_test_database(payload: SeedRequest):
+    base_timestamp = 1_780_000_000_000
+    ids = []
+    for index in range(payload.count):
+        note_id = f"{payload.prefix}-{index:03}"
+        database.notes.documents[note_id] = {
+            "uid": "e2e-user",
+            "text": f"Pagination seed {index:02}",
+            "tags": [payload.tag],
+            "createdAt": base_timestamp + index,
+        }
+        ids.append(note_id)
+    return {"ids": ids}

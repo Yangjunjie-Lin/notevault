@@ -12,6 +12,7 @@
 - [ ] `npm run test:frontend`
 - [ ] `npm run test:coverage`
 - [ ] `npm run test:e2e`
+- [ ] `npm run test:firebase-integration`
 - [ ] `npm run build:frontend`
 - [ ] `npm run test:backend:coverage`
 - [ ] `npm run contract:check`
@@ -19,6 +20,8 @@
 - [ ] No secrets, service accounts, `.env`, or `.vercel/` files added
 - [ ] Documentation updated where needed
 - [ ] Production behavior and deployment impact considered
+- [ ] Both Vercel Projects, Firestore indexes, and Firebase Authorized Domains considered
+- [ ] Cursor version/mutation semantics documented when changed
 
 ## Notes
 

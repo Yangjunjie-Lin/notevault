@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 
 import type { Note, NoteInput } from '../types'
+import SafeMarkdown from './SafeMarkdown'
 
 const MAX_BODY = 5000
 const MAX_TAGS = 10
@@ -47,7 +46,7 @@ function MarkdownBadge() {
 type Props = {
   editingNote: Note | null
   onSubmit: (note: NoteInput) => Promise<void>
-  onCancelEditing: () => void
+  onCancelEditing: (trigger: HTMLButtonElement) => void
   onDirtyChange: (dirty: boolean) => void
   loading: boolean
 }
@@ -135,7 +134,7 @@ export default function NoteComposer({
         ) : (
           <div id="panel-preview" role="tabpanel" aria-labelledby="tab-preview" className="nv-preview">
             {text.trim() ? (
-              <div className="nv-md"><ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown></div>
+              <div className="nv-md"><SafeMarkdown>{text}</SafeMarkdown></div>
             ) : (
               <p className="nv-preview-empty">Nothing to preview yet.</p>
             )}
@@ -170,7 +169,12 @@ export default function NoteComposer({
 
         <div className="nv-composer-actions">
           {editingNote && (
-            <button type="button" className="btn btn-ghost" onClick={onCancelEditing} disabled={loading}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={(event) => onCancelEditing(event.currentTarget)}
+              disabled={loading}
+            >
               Cancel editing
             </button>
           )}

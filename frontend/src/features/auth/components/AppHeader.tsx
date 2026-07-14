@@ -23,7 +23,7 @@ type Props = {
   authReady: boolean
   authBusy: boolean
   onSignIn: () => void
-  onSignOut: () => void
+  onSignOut: (trigger: HTMLButtonElement) => void
 }
 
 /**
@@ -70,7 +70,7 @@ export default function AppHeader({ user, authReady, authBusy, onSignIn, onSignO
             </span>
             <button
               className="btn btn-ghost btn-sm"
-              onClick={onSignOut}
+              onClick={(event) => onSignOut(event.currentTarget)}
               disabled={authBusy}
               aria-busy={authBusy}
               aria-label="Sign out"

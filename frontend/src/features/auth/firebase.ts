@@ -13,7 +13,7 @@ export type AuthUser = Pick<User, 'uid' | 'displayName' | 'email' | 'photoURL'>
 const testAuthEnabled =
   import.meta.env.MODE === 'e2e' && import.meta.env.VITE_TEST_AUTH === 'true'
 
-if (import.meta.env.PROD && import.meta.env.VITE_TEST_AUTH === 'true') {
+if (import.meta.env.MODE !== 'e2e' && import.meta.env.VITE_TEST_AUTH === 'true') {
   throw new Error('Test authentication cannot be enabled in a production build.')
 }
 

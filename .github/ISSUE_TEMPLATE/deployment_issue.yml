@@ -1,0 +1,43 @@
+name: Deployment or configuration issue
+description: Report a Vercel, CORS, Auth, or Firestore configuration failure
+title: "[Deployment]: "
+labels: ["deployment"]
+body:
+  - type: markdown
+    attributes:
+      value: Name environment variables, but never paste their values, tokens, service accounts, or private keys.
+  - type: dropdown
+    id: boundary
+    attributes:
+      label: Affected boundary
+      options: ["Frontend", "Backend", "Both"]
+    validations:
+      required: true
+  - type: input
+    id: project
+    attributes:
+      label: Vercel Project name
+      placeholder: notevault or notevault-api
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options: ["Build", "Environment variable", "CORS", "Authentication", "Firestore", "Other"]
+    validations:
+      required: true
+  - type: input
+    id: env_name
+    attributes:
+      label: Environment variable name only
+  - type: input
+    id: status
+    attributes:
+      label: HTTP or deployment status
+  - type: textarea
+    id: details
+    attributes:
+      label: Sanitized reproduction and logs
+    validations:
+      required: true

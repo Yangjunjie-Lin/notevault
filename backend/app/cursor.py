@@ -10,6 +10,7 @@ from .config import get_settings
 
 
 MAX_CURSOR_LENGTH = 2048
+CURSOR_VERSION = 2
 
 
 def encode_cursor(payload: dict[str, Any]) -> str:
@@ -34,7 +35,7 @@ def decode_cursor(cursor: str) -> dict[str, Any]:
     except (ValueError, TypeError, json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise _invalid_cursor() from exc
 
-    if not isinstance(payload, dict) or payload.get("v") != 1:
+    if not isinstance(payload, dict) or payload.get("v") != CURSOR_VERSION:
         raise _invalid_cursor()
     return payload
 

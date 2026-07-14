@@ -1,6 +1,8 @@
 # NoteVault
 
-NoteVault is a production-oriented, Markdown-first notebook built with React 18, TypeScript, Vite, FastAPI, Firebase Authentication, Firebase Admin SDK, and Cloud Firestore. The browser signs in with Google and sends a Firebase ID token to FastAPI; the API derives the trusted UID and scopes every note operation to it.
+NoteVault is a feature-complete, production-oriented Markdown notebook with Firebase-authenticated user isolation, a typed FastAPI contract, mutation-safe cursor pagination, bounded Firestore access, and automated cross-browser quality gates.
+
+Project status: **Stable · Feature-complete · Production deployed · Maintenance mode · Portfolio flagship**. Future work is limited to security, compatibility, reproducible bugs, accessibility, and verified reliability improvements; see [docs/maintenance.md](docs/maintenance.md).
 
 ## Features
 
@@ -9,11 +11,11 @@ NoteVault is a production-oriented, Markdown-first notebook built with React 18,
 - Markdown write/preview and safe GitHub Flavored Markdown rendering
 - Normalized tags, text search, exact tag filtering, and clear-filter flows
 - Reusable left Composer for editing, with save/cancel and unsaved-change confirmation
-- Stable cursor pagination and a Load more interaction that appends and deduplicates notes
+- Mutation-safe HMAC cursor pagination and a Load more interaction that appends and deduplicates notes
 - `createdAt` preservation and an optional `updatedAt` timestamp for legacy compatibility
 - Abortable initial and pagination requests with stale-response protection
 - Existing responsive NoteVault design system, keyboard access, focus management, and reduced motion
-- Vitest/Testing Library integration tests, Playwright E2E, pytest, coverage gates, OpenAPI type generation, and GitHub Actions
+- Vitest/Testing Library, pytest, production-preview Playwright, axe, Firestore Emulator, coverage gates, generated OpenAPI types, and GitHub Actions
 
 ## Architecture
 
@@ -57,16 +59,32 @@ notevault/
 
 ## Getting started
 
-Prerequisites: Node.js 20+, npm 10+, Python 3.12+, and a Firebase project with Google Authentication and Firestore enabled.
+Prerequisites: Node.js 20–22, npm 10+, Python 3.12–3.13, Java 21+ for the Firestore Emulator, and a Firebase project with Google Authentication and Firestore enabled.
 
 ```bash
 git clone https://github.com/Yangjunjie-Lin/notevault.git
 cd notevault
 npm ci
 npm --prefix frontend ci
-python -m venv .venv
+```
+
+Create the Python environment on Windows PowerShell:
+
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1
 python -m pip install -r backend/requirements-dev.txt
 ```
+
+On Linux/macOS:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r backend/requirements-dev.txt
+```
+
+Root `npm ci` installs repository tooling such as `firebase-tools`; `npm --prefix frontend ci` installs the React build/test dependencies.
 
 Copy `.env.example` to the appropriate untracked local environment file and add the Firebase Web App values. Store local Admin credentials only at `backend/serviceAccountKey.json` or in an untracked backend environment variable.
 
@@ -142,7 +160,7 @@ List response:
 }
 ```
 
-`limit` defaults to 20 and is restricted to 1–50. Cursors are opaque HMAC-signed values bound to the verified UID and active filters. Unfiltered queries use Firestore ordering by `createdAt desc` with document ID as the stable secondary order.
+`limit` defaults to 20 and is restricted to 1–50. Version 2 cursors are opaque HMAC-SHA256 values bound to the verified UID, mode, and active-filter fingerprint. Unfiltered continuation uses signed `createdAt` and document-ID field values, so deleting or editing the boundary note does not invalidate the next page. Cursor pagination provides stable continuation keys, not a frozen database snapshot.
 
 ### Search trade-off
 
@@ -169,10 +187,12 @@ The first command is a dry run.
 
 ```bash
 npm ci
+npm --prefix frontend ci
 npm run typecheck:frontend
 npm run test:frontend
 npm run test:coverage
 npm run build:frontend
+npm --prefix frontend run test:production-auth-gate
 
 python -m pip install -r backend/requirements-dev.txt
 python -m compileall backend/app
@@ -181,12 +201,28 @@ npm run test:backend:coverage
 
 npm run contract:check
 npm run test:e2e
+npm run test:e2e:chromium
+npm run test:e2e:firefox
+npm run test:e2e:webkit
+npm run test:firebase-integration
 npm run check
+npm run verify
 ```
 
 Frontend coverage thresholds are 80% lines/functions/statements and 70% branches. Backend coverage must be at least 85%. Generated OpenAPI types and application bootstrap are the only coverage exclusions.
 
 `npm run contract:generate` exports FastAPI OpenAPI to `backend/openapi.json` and regenerates `frontend/src/features/notes/generated.ts`. CI runs `contract:check` and fails if committed contracts are stale.
+
+Browser support is evidence-based:
+
+| Browser | Maintained validation |
+| --- | --- |
+| Chrome / Edge (Chromium) | Full production-preview workflow and axe states |
+| Safari / WebKit | Core create/edit/delete/pagination/dialog smoke |
+| Firefox | Core smoke is an enforced CI target; the Windows-admin Playwright runtime limitation is documented in maintenance notes |
+| Mobile Safari / Chrome layouts | Responsive Chromium/WebKit smoke at the maintained viewport |
+
+This matrix does not claim all browser versions or devices.
 
 ## Production
 
@@ -205,6 +241,7 @@ Production limitations:
 - Rate limiting is in-memory and best-effort per warm Vercel instance, not distributed.
 - Firebase Authorized Domains must include the exact frontend hostname.
 - Firestore index creation and any legacy timestamp migration are operator steps.
+- Pagination is not snapshot isolation; concurrent changes are handled with stable continuation keys and client ID deduplication.
 
 ## Security and contributing
 

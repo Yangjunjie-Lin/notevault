@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.1.0 — 2026-07-15 — stable maintenance release
+
+### Fixed
+
+- Replaced snapshot-dependent page cursors with signed `createdAt` + document-ID continuation values, so deleting or editing the boundary note no longer breaks Load more.
+- Made dialog focus restoration explicit for Safari/WebKit and added a render-error fallback that does not expose stack traces.
+- Unified NoteCard and editor preview through one raw-HTML-disabled Markdown rendering contract and verified unsafe links/scripts/handlers.
+- Raised muted-text contrast and maintained approximately 40–44px interactive targets without redesigning the existing UI.
+
+### Added
+
+- Mutation-focused backend/frontend tests and a 25-note boundary-deletion Playwright workflow.
+- Optimized `vite build --mode e2e` + `vite preview` coverage with Chromium full, Firefox/WebKit smoke, axe, failure diagnostics, and isolated test reset/seed routes.
+- Real Firestore SDK tests under the Firestore Emulator, an anonymous production smoke workflow, Dependabot, maintenance policy, and structured issue templates.
+- `Retry-After` on in-memory 429 responses and a low-frequency maintenance dependency policy.
+
+### Changed
+
+- Version 2 cursor payloads bind the verified UID, mode, filter fingerprint, creation time, and document ID with HMAC-SHA256.
+- Existing in-memory cursors are invalidated after deployment; reloading the notes list resolves this automatically.
+- Marked NoteVault stable, feature-complete, and in maintenance mode. No new product-scope features are planned.
+
+### Known limitations
+
+- Cursor continuation is not a frozen Firestore snapshot; filtered search remains a bounded recent-200-note scan.
+- Rate limiting is best-effort per warm serverless instance, not global.
+- Firestore Emulator verifies SDK query behavior but does not fully reproduce production composite-index enforcement.
+
 ## 2026-07-14 — product completeness and stability
 
 ### Added

@@ -1,8 +1,7 @@
 import React from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 
 import type { Note } from '../types'
+import SafeMarkdown from './SafeMarkdown'
 
 function TrashIcon() {
   return (
@@ -23,8 +22,8 @@ function EditIcon() {
 
 type Props = {
   note: Note
-  onEdit: (note: Note) => void
-  onDelete: (id: string) => void
+  onEdit: (note: Note, trigger: HTMLButtonElement) => void
+  onDelete: (id: string, trigger: HTMLButtonElement) => void
   onTagSelect: (tag: string) => void
 }
 
@@ -57,9 +56,7 @@ export default function NoteCard({ note, onEdit, onDelete, onTagSelect }: Props)
       {/* Markdown body */}
       <div className="nv-card-body">
         <div className="nv-md">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {note.text}
-          </ReactMarkdown>
+          <SafeMarkdown>{note.text}</SafeMarkdown>
         </div>
       </div>
 
@@ -97,7 +94,7 @@ export default function NoteCard({ note, onEdit, onDelete, onTagSelect }: Props)
           <button
             type="button"
             className="btn btn-ghost btn-sm"
-            onClick={() => onEdit(note)}
+            onClick={(event) => onEdit(note, event.currentTarget)}
             aria-label={`Edit note from ${formatTime(note.createdAt)}`}
           >
             <EditIcon /> Edit
@@ -105,7 +102,7 @@ export default function NoteCard({ note, onEdit, onDelete, onTagSelect }: Props)
           <button
             type="button"
             className="btn-danger"
-            onClick={() => onDelete(note.id)}
+            onClick={(event) => onDelete(note.id, event.currentTarget)}
             aria-label={`Delete note from ${formatTime(note.createdAt)}`}
           >
             <TrashIcon /> Delete

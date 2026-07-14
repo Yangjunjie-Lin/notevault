@@ -6,6 +6,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from google.api_core.exceptions import GoogleAPICallError
 from google.cloud.firestore_v1 import Query as FirestoreQuery
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from ..cursor import decode_cursor, encode_cursor, filter_fingerprint
 from ..firebase import get_firestore_client
@@ -130,15 +131,21 @@ def _list_paginated_notes(
 
     if cursor:
         payload = _validated_cursor(cursor, uid=uid, mode="page", q=None, tag=None)
-        snapshot = collection.document(payload.get("id", "")).get()
+        cursor_id = payload.get("id")
+        cursor_created_at = payload.get("createdAt")
         if (
-            not snapshot.exists
-            or snapshot.to_dict().get("uid") != uid
-            or _created_at_milliseconds(snapshot.to_dict().get("createdAt"))
-            != payload.get("createdAt")
+            not isinstance(cursor_id, str)
+            or not cursor_id
+            or len(cursor_id.encode("utf-8")) > 1_500
+            or "/" in cursor_id
+            or not isinstance(cursor_created_at, int)
+            or isinstance(cursor_created_at, bool)
+            or cursor_created_at < 0
         ):
             raise _invalid_cursor()
-        query = query.start_after(snapshot)
+        query = query.start_after(
+            {"createdAt": cursor_created_at, "__name__": cursor_id}
+        )
 
     snapshots = list(query.limit(limit + 1).stream())
     has_more = len(snapshots) > limit
@@ -149,7 +156,7 @@ def _list_paginated_notes(
         last = notes[-1]
         next_cursor = encode_cursor(
             {
-                "v": 1,
+                "v": 2,
                 "mode": "page",
                 "uid": uid,
                 "fp": filter_fingerprint(None, None),
@@ -190,7 +197,7 @@ def _list_filtered_notes(
     if has_more:
         next_cursor = encode_cursor(
             {
-                "v": 1,
+                "v": 2,
                 "mode": "search",
                 "uid": uid,
                 "fp": filter_fingerprint(q, tag),
@@ -208,7 +215,7 @@ def _list_filtered_notes(
 
 def _ordered_owner_query(collection: Any, uid: str):
     return (
-        collection.where("uid", "==", uid)
+        collection.where(filter=FieldFilter("uid", "==", uid))
         .order_by("createdAt", direction=FirestoreQuery.DESCENDING)
         .order_by("__name__", direction=FirestoreQuery.DESCENDING)
     )

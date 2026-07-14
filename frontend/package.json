@@ -1,22 +1,28 @@
 {
   "name": "notevault-frontend",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Production React and TypeScript frontend for NoteVault.",
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=20",
+    "node": ">=20 <23",
     "npm": ">=10"
   },
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
+    "build:e2e": "vite build --mode e2e",
     "preview": "vite preview --port 4173",
+    "preview:e2e": "vite preview --mode e2e --host 127.0.0.1 --port 4173 --strictPort",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "test:e2e:chromium": "playwright test --project=chromium",
+    "test:e2e:firefox": "playwright test --project=firefox",
+    "test:e2e:webkit": "playwright test --project=webkit",
+    "test:production-auth-gate": "node scripts/assert-production-auth-gate.mjs",
     "contract:generate": "openapi-typescript ../backend/openapi.json -o src/features/notes/generated.ts",
     "check": "npm run typecheck && npm test && npm run test:coverage && npm run build"
   },
@@ -28,6 +34,7 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

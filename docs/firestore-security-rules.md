@@ -61,6 +61,8 @@ service cloud.firestore {
 
 Prefer the backend-only rules unless the frontend has a clear reason to access Firestore directly.
 
+The repository's deployed source of truth is [../firestore.rules](../firestore.rules), which denies all direct client reads and writes. The Firestore Emulator integration uses the server SDK and does not weaken this production rule set.
+
 ## Required index
 
 The maintained backend query needs the composite index in `firestore.indexes.json`:

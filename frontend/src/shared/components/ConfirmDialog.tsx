@@ -18,6 +18,7 @@ type Props = {
   confirmLabel?: string
   loadingLabel?: string
   cancelLabel?: string
+  returnFocus?: HTMLElement | null
 }
 
 export default function ConfirmDialog({
@@ -30,6 +31,7 @@ export default function ConfirmDialog({
   confirmLabel = 'Delete note',
   loadingLabel = 'Deleting…',
   cancelLabel = 'Cancel',
+  returnFocus = null,
 }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
@@ -37,13 +39,17 @@ export default function ConfirmDialog({
 
   useEffect(() => {
     if (open) {
-      previousFocus.current = document.activeElement as HTMLElement
+      previousFocus.current = returnFocus ?? document.activeElement as HTMLElement
       const id = setTimeout(() => cancelRef.current?.focus(), 30)
       return () => clearTimeout(id)
     }
-    previousFocus.current?.focus()
+    const focusTarget = previousFocus.current
     previousFocus.current = null
-  }, [open])
+    const id = setTimeout(() => {
+      if (focusTarget?.isConnected) focusTarget.focus()
+    }, 0)
+    return () => clearTimeout(id)
+  }, [open, returnFocus])
 
   useEffect(() => {
     if (!open) return undefined

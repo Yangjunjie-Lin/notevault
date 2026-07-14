@@ -31,6 +31,8 @@ VITE_FIREBASE_APP_ID=...
 
 Never set `VITE_TEST_AUTH` in Preview or Production.
 
+Before promoting, run `npm --prefix frontend run test:production-auth-gate`; it must confirm that an ordinary production build rejects test auth. The E2E-only optimized bundle is built separately with mode `e2e` and is never a Vercel artifact.
+
 ## Backend project
 
 ```text
@@ -49,6 +51,8 @@ CURSOR_SIGNING_KEY=<random secret of at least 32 characters>
 ```
 
 Production startup rejects wildcard CORS and a missing/short cursor signing key. Add the frontend hostname—not its scheme—to Firebase Authentication Authorized Domains.
+
+Verify Project settings separately. GitHub's legacy `Vercel` commit status may represent only one Project and is not sufficient evidence that both boundaries are Ready. In each Vercel Project, inspect the deployment for the same commit SHA and confirm the production alias before smoke testing.
 
 ## Firestore preparation
 
@@ -81,6 +85,14 @@ GET API /notes without a bearer token -> 401
 ```
 
 Authenticated checks: sign in, create, refresh/list, search, tag filter, edit, Load more, delete, and sign out. Browser diagnostics must show no localhost requests, CORS errors, unauthorized-domain errors, mixed content, failed assets, unhandled rejections, token logging, or service-account content.
+
+Run the credential-free checks with:
+
+```bash
+python scripts/production_smoke.py
+```
+
+Authenticated acceptance additionally deletes the first-page cursor boundary from a 25+ note list and confirms Load more appends the remainder without duplicates. Do not automate production Google credentials in GitHub Actions.
 
 ## Rollback and limitations
 

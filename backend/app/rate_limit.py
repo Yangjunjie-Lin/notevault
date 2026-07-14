@@ -24,6 +24,7 @@ class InMemoryRateLimiter:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Rate limit exceeded. Please try again later.",
+                headers={"Retry-After": str(self.window_seconds)},
             )
 
         requests.append(now)
@@ -44,4 +45,3 @@ def read_limited_uid(uid: str = Depends(get_current_uid)) -> str:
 def write_limited_uid(uid: str = Depends(get_current_uid)) -> str:
     write_notes_limiter.check(uid)
     return uid
-

@@ -21,3 +21,15 @@ Notes use this backend-owned shape:
 `updatedAt` may be absent on legacy documents. Deploy the root `firestore.indexes.json`. Use `backend/scripts/normalize_note_timestamps.py` to audit and normalize old Firestore Timestamp values before enabling production pagination.
 
 Firebase Web configuration is public browser configuration; Admin service-account JSON is a secret. The browser must never receive Admin credentials and never reads/writes Firestore directly.
+
+## Emulator integration
+
+Install root dependencies and run:
+
+```bash
+npm ci
+python -m pip install -r backend/requirements-dev.txt
+npm run test:firebase-integration
+```
+
+The command uses project ID `notevault-test`, `FIRESTORE_EMULATOR_HOST`, and anonymous local credentials. It must never receive production Firebase credentials. It validates the real Firestore SDK contract; production composite-index status must still be confirmed in Firebase Console.

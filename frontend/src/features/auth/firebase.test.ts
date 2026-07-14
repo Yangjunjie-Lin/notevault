@@ -83,4 +83,14 @@ describe('Firebase auth adapter', () => {
     expect(listener).toHaveBeenLastCalledWith(null)
     unsubscribe()
   })
+
+  it('rejects the test auth flag outside explicit e2e mode', async () => {
+    vi.stubEnv('MODE', 'production')
+    vi.stubEnv('PROD', true)
+    vi.stubEnv('VITE_TEST_AUTH', 'true')
+
+    await expect(import('./firebase')).rejects.toThrow(
+      'Test authentication cannot be enabled in a production build.',
+    )
+  })
 })

@@ -122,6 +122,7 @@ def test_write_rate_limit_returns_429(client):
 
     assert first_response.status_code == 201
     assert second_response.status_code == 429
+    assert second_response.headers["retry-after"] == "60"
 
 
 def test_owner_can_update_note_and_preserves_created_at(client, fake_db, monkeypatch):

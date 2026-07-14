@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { logout, signInWithGoogle, subscribeToAuth } from '../features/auth/firebase'
@@ -43,6 +43,14 @@ const secondNote: Note = {
   text: 'Second note',
   tags: ['ideas'],
   createdAt: 1700000000000,
+  updatedAt: null,
+}
+
+const thirdNote: Note = {
+  id: 'note-3',
+  text: 'Third note',
+  tags: ['pages'],
+  createdAt: 1690000000000,
   updatedAt: null,
 }
 
@@ -230,6 +238,82 @@ describe('NoteVault workspace', () => {
     fireEvent.click(loadButtons[loadButtons.length - 1])
     expect(await screen.findByText('Next page unavailable')).toBeInTheDocument()
     expect(screen.getAllByText('Hello NoteVault').length).toBeGreaterThan(0)
+  })
+
+  it('deletes the last loaded boundary note and still loads the next page', async () => {
+    vi.mocked(notesApi.list)
+      .mockResolvedValueOnce(response([note, secondNote], { hasMore: true, nextCursor: 'boundary-cursor' }))
+      .mockResolvedValueOnce(response([thirdNote]))
+    await renderWorkspace()
+
+    const boundaryCard = screen.getByText('Second note').closest('li')
+    expect(boundaryCard).not.toBeNull()
+    fireEvent.click(within(boundaryCard as HTMLElement).getByRole('button', { name: /delete note from/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete note' }))
+    await waitFor(() => expect(screen.queryByText('Second note')).not.toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
+    expect(await screen.findByText('Third note')).toBeInTheDocument()
+    expect(screen.getByText('Hello NoteVault')).toBeInTheDocument()
+  })
+
+  it('deletes a non-boundary note without losing the next-page continuation', async () => {
+    vi.mocked(notesApi.list)
+      .mockResolvedValueOnce(response([note, secondNote], { hasMore: true, nextCursor: 'stable-cursor' }))
+      .mockResolvedValueOnce(response([thirdNote]))
+    await renderWorkspace()
+
+    const firstCard = screen.getByText('Hello NoteVault').closest('li')
+    expect(firstCard).not.toBeNull()
+    fireEvent.click(within(firstCard as HTMLElement).getByRole('button', { name: /delete note from/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete note' }))
+    await waitFor(() => expect(screen.queryByText('Hello NoteVault')).not.toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }))
+    expect(await screen.findByText('Third note')).toBeInTheDocument()
+    expect(screen.getByText('Second note')).toBeInTheDocument()
+  })
+
+  it('merges a created note at the top and never duplicates an existing ID', async () => {
+    vi.mocked(notesApi.list).mockResolvedValue(response([note, secondNote]))
+    vi.mocked(notesApi.create).mockResolvedValueOnce({
+      note: { ...thirdNote, text: 'Newest created note', createdAt: 1720000000000 },
+    })
+    await renderWorkspace()
+
+    fireEvent.change(screen.getByLabelText('Note body (Markdown)'), { target: { value: 'Newest created note' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add note' }))
+    await screen.findByText('Newest created note')
+
+    let cards = screen.getAllByRole('listitem')
+    expect(within(cards[0]).getByText('Newest created note')).toBeInTheDocument()
+
+    vi.mocked(notesApi.create).mockResolvedValueOnce({ note: { ...note, text: 'Same ID replacement' } })
+    fireEvent.change(screen.getByLabelText('Note body (Markdown)'), { target: { value: 'Same ID replacement' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add note' }))
+    await screen.findByText('Same ID replacement')
+    cards = screen.getAllByRole('listitem')
+    expect(cards).toHaveLength(3)
+    expect(screen.queryByText('Hello NoteVault')).not.toBeInTheDocument()
+  })
+
+  it('keeps an updated note in stable createdAt order', async () => {
+    vi.mocked(notesApi.list).mockResolvedValue(response([note, secondNote]))
+    vi.mocked(notesApi.update).mockResolvedValueOnce({
+      note: { ...secondNote, text: 'Edited older note', updatedAt: 1710000002000 },
+    })
+    await renderWorkspace()
+
+    const olderCard = screen.getByText('Second note').closest('li')
+    expect(olderCard).not.toBeNull()
+    fireEvent.click(within(olderCard as HTMLElement).getByRole('button', { name: /edit note from/i }))
+    fireEvent.change(screen.getByLabelText('Note body (Markdown)'), { target: { value: 'Edited older note' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    await screen.findByText('Edited older note')
+
+    const cards = screen.getAllByRole('listitem')
+    expect(within(cards[0]).getByText('Hello NoteVault')).toBeInTheDocument()
+    expect(within(cards[1]).getByText('Edited older note')).toBeInTheDocument()
   })
 
   it('ignores a stale pagination response after filters change', async () => {

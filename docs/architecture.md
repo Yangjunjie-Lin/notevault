@@ -50,12 +50,24 @@ order by document ID descending
 limit requested limit + 1
 ```
 
-The extra document determines `hasMore`. The HMAC-signed cursor contains version, mode, UID, filter fingerprint, last document ID, and normalized creation time. The next request verifies the signature, UID, filter fingerprint, snapshot ownership, and timestamp before using `start_after(snapshot)`.
+The extra document determines `hasMore`. A version 2 HMAC-SHA256 cursor contains mode, verified UID, filter fingerprint, last document ID, and normalized creation time. The next request validates those signed fields and calls `start_after({createdAt, __name__})`; it never rereads the boundary snapshot. Version 1 cursors return 400 and a first-page reload recovers automatically.
 
 ### Search or tag filter
 
 Firestore cannot provide arbitrary substring search. The API queries at most 201 recent owned documents, uses the first 200 as a hard scan cap, normalizes timestamps, filters, and pages the bounded result. `searchLimited` is true when the cap was reached. A filtered cursor stores a signed offset and is bound to the normalized filters.
 
+## Concurrent mutation semantics
+
+Cursor pagination provides stable continuation keys, not a frozen database snapshot.
+
+- A newly created note can merge at the current UI top; an older cursor is not required to include it.
+- Deleting a loaded note, including the boundary note, does not invalidate continuation. Deleted notes are removed locally and are not returned again.
+- Editing text or tags preserves `createdAt`, so the note keeps its chronological position. If it no longer matches active filters, the client removes it.
+- Multiple devices may change the database between requests. The client merges by ID, rejects stale filter responses, and never renders duplicate note IDs.
+- Search/tag cursors are signed against the normalized filter fingerprint. Because filtered pagination uses a bounded offset over a newly read recent set, concurrent filtered mutations do not provide snapshot isolation.
+
 ## Test authentication
 
-The frontend test adapter activates only when both `MODE=e2e` and `VITE_TEST_AUTH=true`; a production build throws if the test flag is present. Playwright starts `tests.e2e_app:app`, which overrides authentication and Firestore in that dedicated process. The production entrypoint `app.main:app` never imports the test module, and CI stores no real token or Firebase credential.
+The frontend test adapter activates only when both `MODE=e2e` and `VITE_TEST_AUTH=true`; Vite config rejects that flag in ordinary production mode before bundling. Playwright builds the optimized E2E bundle, serves it with Vite preview, and starts `tests.e2e_app:app` from an isolated global setup. Reset/seed routes exist only in that test module. The production entrypoint `app.main:app` never imports it, and CI stores no real token or Firebase credential.
+
+The Firestore Emulator suite uses the real Google Cloud Firestore client and validates ordering, document-reference cursors, Timestamp conversion, owner isolation, update/delete, and boundary deletion. The emulator does not fully reproduce production composite-index enforcement, so deployment still requires checking `firestore.indexes.json` in Firebase Console.
