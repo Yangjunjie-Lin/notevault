@@ -79,6 +79,15 @@ jobs:
       - run: python -m pip install -r backend/requirements.txt
       - name: Verify generated types are current
         run: npm run contract:check
+      - name: Upload regenerated contract on drift
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regenerated-contract
+          path: |
+            backend/openapi.json
+            frontend/src/features/notes/generated.ts
+          retention-days: 1
 
   e2e:
     name: Playwright E2E
