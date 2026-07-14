@@ -29,7 +29,7 @@ const FEATURES = [
   'Private to your Google account',
   'Markdown & GitHub Flavored Markdown',
   'Tag-based organisation',
-  'Full-text search',
+  'Search your recent notes',
 ]
 
 /**

@@ -36,7 +36,7 @@ type Props = {
 /**
  * Search and tag-filter toolbar above the notes list.
  *
- * - Search input: full-text, max 100 chars, submitted on Enter or Search button
+ * - Search input: bounded recent-note search, max 100 chars, submitted on Enter or Search button
  * - Tag input: exact match, max 32 chars
  * - Clear button resets both fields and fires onChange immediately
  * - Active filter badges show what is currently applied
@@ -73,7 +73,7 @@ export default function NotesToolbar({ filters, onChange, loading }: Props) {
     >
       {/* ── Inputs ── */}
       <div className="nv-toolbar-fields">
-        {/* Full-text search */}
+        {/* Bounded recent-note search */}
         <div className="nv-input-group">
           <span className="nv-input-icon"><SearchIcon /></span>
           <label htmlFor="search-q" className="sr-only">Search notes</label>

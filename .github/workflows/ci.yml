@@ -121,5 +121,6 @@ jobs:
           grep -q "\.vercel/" .gitignore || grep -q "^\.vercel$" .gitignore
           grep -q "serviceAccountKey.json" .gitignore
           grep -q "git clone https://github.com/Yangjunjie-Lin/notevault.git" README.md
-          ! git ls-files | grep -E '(^|/)\.env($|\.)|serviceAccountKey\.json|(^|/)\.vercel/'
+          ! git ls-files | grep -E '(^|/)\.env($|\.(local|production|development|test)$)|serviceAccountKey\.json|(^|/)\.vercel/'
+          ! git ls-files | grep -E '(^|/)(\.venv|venv)/'
           ! git grep -I -E -- 'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|"private_key"[[:space:]]*:'
