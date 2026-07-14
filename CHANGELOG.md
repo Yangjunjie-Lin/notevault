@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-07-14 — product completeness and stability
+
+### Added
+
+- Secure `PATCH /notes/{note_id}` with owner-hiding 404 behavior, normalized writes, preserved creation time, and nullable `updatedAt` compatibility.
+- HMAC-signed cursor pagination, stable document-ID ordering, bounded 200-note search, and a Firestore composite index definition.
+- Reusable Composer edit mode, dirty-draft confirmation, success feedback, updated timestamps, and Load more interaction.
+- OpenAPI-generated frontend contract types with a CI drift check.
+- Playwright E2E coverage using isolated test-only auth/store adapters, plus frontend and backend coverage gates.
+- A dry-run-first legacy Firestore timestamp normalization script.
+
+### Changed
+
+- Moved note request/page/mutation state into a focused `useNotes` hook with abort, stale-response, deduplication, and filter-reset guarantees.
+- Expanded CI into frontend, backend, contract, E2E, and repository-hygiene jobs.
+- Updated deployment, Firebase, Firestore, architecture, contribution, and README contracts.
+
+### Security
+
+- Production now requires an explicit cursor signing key and continues to reject wildcard CORS.
+- Request schemas forbid client-supplied extra fields such as `uid`.
+- Firestore failures return a sanitized 503 without database internals.
+
 ## 2026-07-14
 
 ### Changed

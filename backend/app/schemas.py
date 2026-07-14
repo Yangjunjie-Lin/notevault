@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class NoteCreate(BaseModel):
+class NoteWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     text: str = Field(..., min_length=1, max_length=5000)
     tags: list[str] = Field(default_factory=list, max_length=10)
 
@@ -28,18 +30,34 @@ class NoteCreate(BaseModel):
         return normalized
 
 
+class NoteCreate(NoteWrite):
+    pass
+
+
+class NoteUpdate(NoteWrite):
+    pass
+
+
 class NoteOut(BaseModel):
     id: str
     text: str
     tags: list[str] = Field(default_factory=list)
     createdAt: int
+    updatedAt: int | None = None
 
 
 class NotesResponse(BaseModel):
     notes: list[NoteOut]
+    nextCursor: str | None = None
+    hasMore: bool = False
+    searchLimited: bool = False
 
 
 class CreateNoteResponse(BaseModel):
+    note: NoteOut
+
+
+class UpdateNoteResponse(BaseModel):
     note: NoteOut
 
 

@@ -1,58 +1,23 @@
-# Firebase Setup
+# Firebase setup
 
-## 1. Create a Firebase project
+1. Enable Google in Firebase Authentication.
+2. Add `localhost` for local work and `notevault-lovat.vercel.app` for production to Authorized Domains.
+3. Create/select a Firebase Web App and store its `VITE_FIREBASE_*` values in untracked local files and Vercel frontend environment variables.
+4. Enable Cloud Firestore.
+5. Create an Admin service account and store its JSON only in `backend/serviceAccountKey.json` locally or the sensitive Vercel `FIREBASE_CREDENTIALS_JSON` variable.
 
-Open the Firebase Console and create a project for NoteVault.
-
-## 2. Enable Google sign-in
-
-Go to Authentication -> Sign-in method, then enable Google.
-
-Add local development domains if needed:
-
-- `localhost`
-- `127.0.0.1`
-
-For production, also add the live frontend hostname, for example:
-
-- `notevault-lovat.vercel.app`
-
-## 3. Create a Web App
-
-In Project settings -> General, create or select a Web App and copy its config values into `.env`:
-
-```bash
-VITE_FIREBASE_API_KEY=
-VITE_FIREBASE_AUTH_DOMAIN=
-VITE_FIREBASE_PROJECT_ID=
-VITE_FIREBASE_STORAGE_BUCKET=
-VITE_FIREBASE_MESSAGING_SENDER_ID=
-VITE_FIREBASE_APP_ID=
-```
-
-## 4. Enable Firestore
-
-Create a Firestore database. The backend stores notes in a `notes` collection with this shape:
+Notes use this backend-owned shape:
 
 ```json
 {
-  "uid": "firebase-user-id",
-  "text": "note content",
-  "tags": ["work", "ideas"],
-  "createdAt": 1710000000000
+  "uid": "verified-firebase-uid",
+  "text": "Markdown",
+  "tags": ["work"],
+  "createdAt": 1780000000000,
+  "updatedAt": 1780001000000
 }
 ```
 
-Because all note writes go through the backend, Firestore client write rules can stay restrictive. See [firestore-security-rules.md](firestore-security-rules.md).
+`updatedAt` may be absent on legacy documents. Deploy the root `firestore.indexes.json`. Use `backend/scripts/normalize_note_timestamps.py` to audit and normalize old Firestore Timestamp values before enabling production pagination.
 
-## 5. Configure the service account
-
-Create a service account key in Project settings -> Service accounts.
-
-For local development, save it as:
-
-```text
-backend/serviceAccountKey.json
-```
-
-For deployment, prefer `FIREBASE_CREDENTIALS_JSON` as a platform environment variable. Keep it as a single-line JSON string.
+Firebase Web configuration is public browser configuration; Admin service-account JSON is a secret. The browser must never receive Admin credentials and never reads/writes Firestore directly.

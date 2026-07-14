@@ -1,5 +1,5 @@
-import { auth } from '../auth/firebase'
-import type { NoteFilters, NoteInput } from './types'
+import { getIdToken } from '../auth/firebase'
+import type { Note, NoteInput, NotesQuery, NotesResponse } from './types'
 
 function resolveApiBaseUrl() {
   const configured = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/+$/, '')
@@ -14,10 +14,12 @@ function resolveApiBaseUrl() {
 
 const API_BASE_URL = resolveApiBaseUrl()
 
-function buildUrl(path: string, params: Partial<NoteFilters> = {}) {
+function buildUrl(path: string, params: Partial<NotesQuery> = {}) {
   const searchParams = new URLSearchParams()
   Object.entries(params).forEach(([key, value]) => {
-    if (value) searchParams.set(key, value)
+    if (value !== undefined && value !== null && value !== '') {
+      searchParams.set(key, String(value))
+    }
   })
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
@@ -38,9 +40,7 @@ async function responseError(response: Response) {
 }
 
 async function authFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  if (!auth?.currentUser) throw new Error('You must sign in before using notes.')
-
-  const token = await auth.currentUser.getIdToken()
+  const token = await getIdToken()
   const headers = new Headers(options.headers)
   headers.set('Authorization', `Bearer ${token}`)
   if (options.body) headers.set('Content-Type', 'application/json')
@@ -52,11 +52,16 @@ async function authFetch<T>(path: string, options: RequestInit = {}): Promise<T>
 }
 
 export const notesApi = {
-  list: (filters: NoteFilters, signal?: AbortSignal) =>
-    authFetch<{ notes: import('./types').Note[] }>(buildUrl('/notes', filters), { signal }),
+  list: (query: NotesQuery, signal?: AbortSignal) =>
+    authFetch<NotesResponse>(buildUrl('/notes', query), { signal }),
   create: (input: NoteInput) =>
-    authFetch<{ note: import('./types').Note }>(buildUrl('/notes'), {
+    authFetch<{ note: Note }>(buildUrl('/notes'), {
       method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  update: (id: string, input: NoteInput) =>
+    authFetch<{ note: Note }>(buildUrl(`/notes/${encodeURIComponent(id)}`), {
+      method: 'PATCH',
       body: JSON.stringify(input),
     }),
   delete: (id: string) =>

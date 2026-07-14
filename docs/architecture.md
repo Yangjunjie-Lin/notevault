@@ -1,79 +1,61 @@
-# NoteVault Architecture
+# NoteVault architecture
 
-This document is the engineering map for extending NoteVault without weakening its authentication, ownership, or UI-state guarantees.
+## Trust boundaries
 
-## System boundaries
-
-~~~mermaid
+```mermaid
 flowchart LR
-  UI["React + TypeScript UI"] --> Auth["Firebase Web Auth"]
-  UI --> API["FastAPI notes API"]
+  UI["React UI"] --> Auth["Firebase Web Auth"]
+  UI --> Adapter["Authenticated notes API adapter"]
+  Adapter --> API["FastAPI"]
   API --> Verify["Firebase Admin token verification"]
-  Verify --> Store["Cloud Firestore"]
-  API --> Limit["Per-user rate limiter"]
-~~~
+  Verify --> UID["Trusted UID"]
+  UID --> Limit["Per-user rate limit"]
+  Limit --> Store["Cloud Firestore"]
+```
 
-The browser never talks to Firestore directly. Firebase Web Auth establishes the user session and issues an ID token. The note API attaches that token to each request. FastAPI verifies it, derives the trusted user ID, rate-limits the operation, and scopes all reads and writes to that ID.
+The browser never supplies a trusted UID and never accesses Firestore directly. FastAPI verifies the bearer token, derives the UID, and applies it to every query and ownership check. Missing and cross-user note IDs both return 404.
 
-## Frontend module boundaries
+## Frontend boundaries
 
-~~~text
-src/
-|-- app/
-|   |-- App.tsx            # Composition, auth session, request lifecycle
-|   `-- App.test.tsx       # User-workflow integration coverage
-|-- features/
-|   |-- auth/
-|   |   |-- firebase.ts    # Firebase adapter
-|   |   `-- components/    # Header and signed-out landing
-|   `-- notes/
-|       |-- api.ts         # Authenticated HTTP adapter
-|       |-- types.ts       # Shared note contracts
-|       `-- components/    # Composer, toolbar, cards, empty state
-|-- shared/components/     # Dialog, error banner, loading skeleton
-|-- styles/app.css         # Tokens, layout, states, responsive rules
-`-- main.tsx               # React bootstrap only
-~~~
+```text
+src/app/App.tsx                         composition, auth, confirmations
+src/features/auth/firebase.ts          production Firebase/test-mode adapter
+src/features/notes/api.ts              authenticated HTTP adapter
+src/features/notes/generated.ts        generated OpenAPI schema types
+src/features/notes/types.ts            aliases plus UI-only filter types
+src/features/notes/hooks/useNotes.ts   pages, aborts, dedupe, mutations
+src/features/notes/components/         presentation and composer state
+src/shared/components/                 accessible feedback/dialog primitives
+src/styles/app.css                     existing NoteVault design system
+```
 
-Rules:
+Presentation components do not call Firebase or HTTP. `useNotes` owns the active first-page request and a separate abortable pagination request. A monotonic request version prevents an older page from merging after a user, search, or tag change. Merge-by-ID deduplicates overlapping pages.
 
-- The app layer may compose features; feature components do not import the app.
-- HTTP and Firebase SDK calls stay in adapters, not presentation components.
-- Domain contracts live in features/notes/types.ts; do not duplicate note shapes.
-- Shared components stay domain-neutral.
-- The composition root owns cross-feature state such as the current user, active filters, network errors, and delete confirmation.
+The Composer remains in the original left panel. Its mode is derived from the selected note; failed saves retain the local draft. App-level intent state handles cancel, another Edit action, and sign-out when the draft is dirty. The shared dialog provides focus trap, Escape, focus restore, backdrop handling, scroll lock, and disabled pending behavior.
 
-## Note query lifecycle
+## Data contracts
 
-Every authenticated user or filter change starts one note query. The previous request is aborted during effect cleanup. This ensures a slower old search cannot replace the result of a newer search. Loading state is cleared only by the request that is still active.
+FastAPI is the schema source. `backend/scripts/export_openapi.py` writes deterministic `backend/openapi.json`; `openapi-typescript` generates `frontend/src/features/notes/generated.ts`. CI regenerates both and rejects a diff.
 
-Newly created notes are inserted locally only when they match the active filters. Deletion is applied locally only after the API confirms success. Failed creates preserve the draft; failed deletes preserve the note.
+`NoteOut.updatedAt` is nullable so legacy notes remain valid. Current updates preserve `createdAt` and set millisecond `updatedAt`.
 
-## Interaction contract
+## Query paths
 
-The production UI supports:
+### Unfiltered list
 
-- Google sign-in and sign-out
-- Markdown write and preview modes
-- note body and tag constraint feedback
-- note creation with pending and error states
-- full-text and exact-tag search
-- clear filters from the toolbar or filtered empty state
-- one-click filtering from a note tag
-- two-step deletion with Escape, backdrop, focus trap, focus restore, and scroll lock
-- dismissible global errors
-- desktop, tablet, mobile, keyboard, and reduced-motion behavior
+```text
+where uid == verified UID
+order by createdAt descending
+order by document ID descending
+limit requested limit + 1
+```
 
-Any new visible action must include a real handler, a pending or disabled policy when asynchronous, an error path, and an integration test.
+The extra document determines `hasMore`. The HMAC-signed cursor contains version, mode, UID, filter fingerprint, last document ID, and normalized creation time. The next request verifies the signature, UID, filter fingerprint, snapshot ownership, and timestamp before using `start_after(snapshot)`.
 
-## Backend guarantees
+### Search or tag filter
 
-- Pydantic normalizes body text and tags at the API boundary.
-- Authentication derives the UID from a verified token; clients cannot submit a UID.
-- Reads query by UID and then apply optional text and tag filters.
-- Deletes return 404 for missing notes and notes owned by another user, avoiding ownership disclosure.
-- Production CORS rejects wildcard origins.
+Firestore cannot provide arbitrary substring search. The API queries at most 201 recent owned documents, uses the first 200 as a hard scan cap, normalizes timestamps, filters, and pages the bounded result. `searchLimited` is true when the cap was reached. A filtered cursor stores a signed offset and is bound to the normalized filters.
 
-## Quality gate
+## Test authentication
 
-Run npm run check before opening a pull request. Activate the repository Python virtual environment first so the pinned backend dependencies are used.
+The frontend test adapter activates only when both `MODE=e2e` and `VITE_TEST_AUTH=true`; a production build throws if the test flag is present. Playwright starts `tests.e2e_app:app`, which overrides authentication and Firestore in that dedicated process. The production entrypoint `app.main:app` never imports the test module, and CI stores no real token or Firebase credential.

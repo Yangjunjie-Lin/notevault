@@ -1,41 +1,22 @@
 # Contributing
 
-Thank you for your interest in improving NoteVault.
+Create a focused branch from `main`, preserve the existing NoteVault design language, and keep authentication/HTTP out of presentation components. Update OpenAPI-generated types and documentation whenever API behavior changes.
 
-## Development Workflow
-
-1. Create a new branch from `main`.
-2. Keep changes focused and easy to review.
-3. Run the relevant checks before opening a pull request.
-4. Update documentation when behavior, configuration, or setup steps change.
-
-## Local Checks
-
-Frontend:
+Run before opening a pull request:
 
 ```bash
-npm run test:frontend
+npm ci
+npm --prefix frontend ci
 npm run typecheck:frontend
+npm run test:frontend
+npm run test:coverage
 npm run build:frontend
-```
+npm run test:e2e
 
-Backend:
-
-```bash
-npm run test:backend
+python -m pip install -r backend/requirements-dev.txt
 python -m compileall backend/app
+npm run test:backend:coverage
+npm run contract:check
 ```
 
-Security audit:
-
-```bash
-cd frontend
-npm audit --omit=dev
-```
-
-## Pull Request Guidelines
-
-- Describe the purpose of the change.
-- Include screenshots for user interface changes.
-- Mention any required environment variable changes.
-- Keep unrelated refactors out of feature or bug-fix pull requests.
+Do not commit `.env`, `.vercel/`, service account files, private keys, tokens, Playwright output, or coverage artifacts. Explain required indexes, migrations, environment changes, and production impact in the PR. Include screenshots for visible UI changes and verify mobile/keyboard behavior.

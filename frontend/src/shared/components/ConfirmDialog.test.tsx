@@ -1,0 +1,46 @@
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+
+import ConfirmDialog from './ConfirmDialog'
+
+describe('ConfirmDialog', () => {
+  it('supports Escape, backdrop cancel, and custom labels', () => {
+    const onCancel = vi.fn()
+    const { rerender } = render(
+      <ConfirmDialog
+        open
+        loading={false}
+        title="Discard draft?"
+        description="Unsaved content"
+        confirmLabel="Discard"
+        onConfirm={vi.fn()}
+        onCancel={onCancel}
+      />,
+    )
+    expect(screen.getByRole('dialog', { name: 'Discard draft?' })).toHaveTextContent('Unsaved content')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onCancel).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('dialog'))
+    expect(onCancel).toHaveBeenCalledTimes(2)
+    rerender(<ConfirmDialog open={false} loading={false} onConfirm={vi.fn()} onCancel={onCancel} />)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('prevents cancellation while loading and traps forward/backward Tab', () => {
+    const onCancel = vi.fn()
+    render(<ConfirmDialog open loading onConfirm={vi.fn()} onCancel={onCancel} />)
+    const buttons = screen.getAllByRole('button')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('dialog'))
+    expect(onCancel).not.toHaveBeenCalled()
+    expect(buttons[0]).toBeDisabled()
+
+    // Re-render enabled to exercise both ends of the focus trap.
+    render(<ConfirmDialog open loading={false} onConfirm={vi.fn()} onCancel={onCancel} />)
+    const enabled = screen.getAllByRole('button').filter((button) => !button.hasAttribute('disabled'))
+    enabled[enabled.length - 1].focus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    enabled[0].focus()
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+  })
+})

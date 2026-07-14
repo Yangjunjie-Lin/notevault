@@ -35,6 +35,12 @@ class Settings:
         self.firebase_credentials_path = os.getenv("FIREBASE_CREDENTIALS_PATH") or os.getenv(
             "firebase_credentials_path"
         )
+        self.cursor_signing_key = os.getenv("CURSOR_SIGNING_KEY", "").strip()
+
+        if self.is_production and len(self.cursor_signing_key) < 32:
+            raise RuntimeError(
+                "Production deployments require CURSOR_SIGNING_KEY with at least 32 characters."
+            )
 
     @property
     def is_production(self) -> bool:
@@ -54,6 +60,12 @@ class Settings:
     @staticmethod
     def _split_origins(value: str) -> list[str]:
         return [origin.strip() for origin in value.split(",") if origin.strip()]
+
+    @property
+    def effective_cursor_signing_key(self) -> str:
+        if self.cursor_signing_key:
+            return self.cursor_signing_key
+        return "notevault-local-development-cursor-key"
 
 
 @lru_cache

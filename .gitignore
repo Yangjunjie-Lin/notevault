@@ -13,6 +13,9 @@ backend/venv/
 api/__pycache__/
 api/routes/__pycache__/
 frontend/dist/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
 frontend/.env
 frontend/.env.local
 dist/
@@ -23,6 +26,8 @@ dist/
 .idea/
 .vercel/
 .vercel
+.coverage
+coverage.xml
 
 # Local Figma Make export; production code lives in frontend/src.
 /Revamp NoteVault UI/

@@ -694,6 +694,14 @@ img { max-width: 100%; display: block; }
   white-space: nowrap;
 }
 
+.nv-composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nv-composer-submit { flex: 1; min-height: 42px; }
+
 /* Markdown preview */
 .nv-preview {
   min-height: 180px;
@@ -840,6 +848,37 @@ img { max-width: 100%; display: block; }
   transition: background var(--nv-dur-fast), box-shadow var(--nv-dur-fast);
 }
 .nv-card-tag:hover { background: #ddd6fe; }
+
+.nv-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.nv-card-time--updated { color: var(--nv-primary); }
+
+.nv-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 52px;
+  padding: 4px 16px 12px;
+}
+
+.nv-pagination-end {
+  font-size: 0.75rem;
+  color: var(--nv-text-muted);
+}
+
+.nv-search-limit {
+  margin: 0;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--nv-primary-border);
+  background: var(--nv-primary-bg);
+  color: var(--nv-primary-hover);
+  font-size: 0.75rem;
+}
 
 /* =========================================================
    11. Markdown rendering
@@ -1074,6 +1113,16 @@ img { max-width: 100%; display: block; }
 .nv-error-dismiss:hover { background: #fee2e2; }
 .nv-error-dismiss:focus-visible { outline: 2px solid var(--nv-danger); outline-offset: 1px; }
 
+.nv-status {
+  margin: 0 24px;
+  padding: 9px 14px;
+  border: 1px solid var(--nv-primary-border);
+  border-radius: var(--nv-r-md);
+  background: var(--nv-primary-bg);
+  color: var(--nv-primary-hover);
+  font-size: 0.875rem;
+}
+
 /* =========================================================
    15. ConfirmDialog
    ========================================================= */
@@ -1170,6 +1219,7 @@ img { max-width: 100%; display: block; }
   .nv-card { padding: 12px 14px; }
   .nv-landing { padding: 40px 20px; }
   .nv-error { margin: 0 12px; }
+  .nv-status { margin: 0 12px; }
 
   /* Full-width buttons on small screens */
   .nv-toolbar-actions { width: 100%; }
@@ -1180,7 +1230,12 @@ img { max-width: 100%; display: block; }
   .nv-dialog-actions .btn { width: 100%; min-height: 44px; justify-content: center; }
 
   /* Mobile-friendly tap targets */
-  .btn-danger { min-height: 40px; padding: 8px 12px; }
+  .btn-danger,
+  .nv-card-actions .btn { min-height: 44px; padding: 8px 12px; }
+  .nv-card-footer { align-items: stretch; flex-direction: column; }
+  .nv-card-actions { justify-content: flex-end; }
+  .nv-composer-actions { flex-direction: column-reverse; }
+  .nv-composer-actions .btn { width: 100%; min-height: 44px; }
 }
 
 /* =========================================================

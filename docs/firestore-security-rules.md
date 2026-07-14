@@ -44,7 +44,7 @@ service cloud.firestore {
 
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['uid', 'text', 'tags', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['uid', 'text', 'tags', 'createdAt', 'updatedAt'])
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0
         && request.resource.data.text.size() <= 5000
@@ -61,3 +61,14 @@ service cloud.firestore {
 
 Prefer the backend-only rules unless the frontend has a clear reason to access Firestore directly.
 
+## Required index
+
+The maintained backend query needs the composite index in `firestore.indexes.json`:
+
+```text
+collection: notes
+uid: ASCENDING
+createdAt: DESCENDING
+```
+
+Document ID is the stable secondary ordering. Rules do not grant Admin SDK access; Admin SDK bypasses these client rules and the FastAPI ownership checks remain mandatory.

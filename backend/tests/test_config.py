@@ -31,6 +31,7 @@ def test_reads_lowercase_firebase_credentials_env(monkeypatch):
 def test_production_accepts_explicit_origins(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("ALLOWED_ORIGINS", "https://notevault.vercel.app")
+    monkeypatch.setenv("CURSOR_SIGNING_KEY", "x" * 32)
     get_settings.cache_clear()
 
     settings = Settings()
@@ -38,5 +39,14 @@ def test_production_accepts_explicit_origins(monkeypatch):
     assert settings.is_production is True
 
     get_settings.cache_clear()
-    for key in ("ENVIRONMENT", "ALLOWED_ORIGINS"):
+    for key in ("ENVIRONMENT", "ALLOWED_ORIGINS", "CURSOR_SIGNING_KEY"):
         os.environ.pop(key, None)
+
+
+def test_production_requires_strong_cursor_key(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("ALLOWED_ORIGINS", "https://notevault.vercel.app")
+    monkeypatch.delenv("CURSOR_SIGNING_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match="CURSOR_SIGNING_KEY"):
+        Settings()

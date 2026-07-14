@@ -13,8 +13,17 @@ function TrashIcon() {
   )
 }
 
+function EditIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M11 2l3 3-8 8H3v-3l8-8z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 type Props = {
   note: Note
+  onEdit: (note: Note) => void
   onDelete: (id: string) => void
   onTagSelect: (tag: string) => void
 }
@@ -39,8 +48,9 @@ function formatTime(ts: number): string {
  *
  * Deletion is handled by the parent — this component only signals intent.
  */
-export default function NoteCard({ note, onDelete, onTagSelect }: Props) {
+export default function NoteCard({ note, onEdit, onDelete, onTagSelect }: Props) {
   const isoDate = note.createdAt ? new Date(note.createdAt).toISOString() : ''
+  const updatedIsoDate = note.updatedAt ? new Date(note.updatedAt).toISOString() : ''
 
   return (
     <li className="nv-card" aria-label={`Note from ${formatTime(note.createdAt)}`}>
@@ -58,12 +68,17 @@ export default function NoteCard({ note, onDelete, onTagSelect }: Props) {
         <div className="nv-card-meta">
           {isoDate && (
             <time className="nv-card-time" dateTime={isoDate}>
-              {formatTime(note.createdAt)}
+              Created {formatTime(note.createdAt)}
             </time>
           )}
-          {note.tags?.length > 0 && (
+          {updatedIsoDate && (
+            <time className="nv-card-time nv-card-time--updated" dateTime={updatedIsoDate}>
+              Updated {formatTime(note.updatedAt ?? 0)}
+            </time>
+          )}
+          {(note.tags?.length ?? 0) > 0 && (
             <div className="nv-card-tags" aria-label="Tags">
-              {note.tags.map((tag) => (
+              {(note.tags ?? []).map((tag) => (
                 <button
                   type="button"
                   key={tag}
@@ -78,14 +93,24 @@ export default function NoteCard({ note, onDelete, onTagSelect }: Props) {
           )}
         </div>
 
-        <button
-          className="btn-danger"
-          onClick={() => onDelete(note.id)}
-          aria-label={`Delete note from ${formatTime(note.createdAt)}`}
-        >
-          <TrashIcon />
-          <span style={{ marginLeft: 4 }}>Delete</span>
-        </button>
+        <div className="nv-card-actions">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => onEdit(note)}
+            aria-label={`Edit note from ${formatTime(note.createdAt)}`}
+          >
+            <EditIcon /> Edit
+          </button>
+          <button
+            type="button"
+            className="btn-danger"
+            onClick={() => onDelete(note.id)}
+            aria-label={`Delete note from ${formatTime(note.createdAt)}`}
+          >
+            <TrashIcon /> Delete
+          </button>
+        </div>
       </div>
     </li>
   )

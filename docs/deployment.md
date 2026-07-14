@@ -1,145 +1,87 @@
 # Deployment
 
-NoteVault is deployed as two Vercel Projects from the same GitHub monorepo.
+NoteVault uses two Vercel Projects connected to the same GitHub repository.
 
-## Production architecture
-
-```mermaid
-flowchart LR
-  browser["Browser"] --> frontend["Vercel Project: notevault\nfrontend/"]
-  browser --> auth["Firebase Authentication"]
-  frontend -->|"VITE_API_BASE_URL"| api["Vercel Project: notevault-api\nbackend/"]
-  api --> admin["Firebase Admin SDK"]
-  admin --> firestore["Cloud Firestore"]
-  auth --> browser
-```
-
-| Layer | Vercel Project | Root Directory | Production URL |
+| Layer | Project | Root Directory | Production URL |
 | --- | --- | --- | --- |
 | Frontend | `notevault` | `frontend` | https://notevault-lovat.vercel.app |
-| Backend API | `notevault-api` | `backend` | https://notevault-api.vercel.app |
+| Backend | `notevault-api` | `backend` | https://notevault-api.vercel.app |
 
-Primary production hosting is Vercel for both services. Railway/Render remain optional alternatives for the FastAPI backend.
-
-## Deployment links
-
-| Target | URL |
-| --- | --- |
-| Frontend live app | https://notevault-lovat.vercel.app |
-| Backend health check | https://notevault-api.vercel.app/health |
-| Backend API docs | https://notevault-api.vercel.app/docs |
-| OpenAPI schema | https://notevault-api.vercel.app/openapi.json |
-| CI workflow | [.github/workflows/ci.yml](../.github/workflows/ci.yml) |
-
-## Frontend (Vercel)
-
-Project settings:
+## Frontend project
 
 ```text
-Root directory: frontend
 Framework: Vite
-Install command: npm ci
-Build command: npm run build
-Output directory: dist
+Install: npm ci
+Build: npm run build
+Output: dist
+Production branch: main
 ```
 
-Production environment variables:
-
-```bash
-VITE_API_BASE_URL=https://notevault-api.vercel.app
-VITE_FIREBASE_API_KEY=
-VITE_FIREBASE_AUTH_DOMAIN=
-VITE_FIREBASE_PROJECT_ID=
-VITE_FIREBASE_STORAGE_BUCKET=
-VITE_FIREBASE_MESSAGING_SENDER_ID=
-VITE_FIREBASE_APP_ID=
-```
-
-`frontend/vercel.json` sets `npm ci`, the Vite build, and SPA rewrite to `index.html`.
-
-After the frontend domain is known:
-
-1. Set backend `ALLOWED_ORIGINS` to the exact frontend origin.
-2. Add the frontend hostname to Firebase Authentication -> Authorized domains.
-
-## Backend (Vercel / FastAPI)
-
-Project settings:
+Required production environment:
 
 ```text
-Root directory: backend
+VITE_API_BASE_URL=https://notevault-api.vercel.app
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+```
+
+Never set `VITE_TEST_AUTH` in Preview or Production.
+
+## Backend project
+
+```text
 Framework: FastAPI
-Entrypoint: app.main:app  (via backend/pyproject.toml [tool.vercel])
+Entrypoint: app.main:app
+Production branch: main
 ```
 
-Production environment variables:
+Required production environment:
 
-```bash
+```text
 ENVIRONMENT=production
-APP_NAME=NoteVault API
-APP_VERSION=1.0.0
 ALLOWED_ORIGINS=https://notevault-lovat.vercel.app
-FIREBASE_CREDENTIALS_JSON={"type":"service_account","project_id":"..."}
+FIREBASE_CREDENTIALS_JSON=<sensitive single-line service account JSON>
+CURSOR_SIGNING_KEY=<random secret of at least 32 characters>
 ```
 
-Notes:
+Production startup rejects wildcard CORS and a missing/short cursor signing key. Add the frontend hostname—not its scheme—to Firebase Authentication Authorized Domains.
 
-- `ENVIRONMENT=production` refuses `ALLOWED_ORIGINS=*`.
-- `FIREBASE_CREDENTIALS_JSON` must be valid single-line JSON. Never commit it.
-- `/` and `/health` do not require Firestore.
-- Note endpoints require a valid Firebase ID token.
+## Firestore preparation
 
-CLI example (already used for the current release):
+Deploy the root `firestore.indexes.json` composite index (`uid ASC`, `createdAt DESC`). If the database predates millisecond timestamps, run the timestamp script without `--apply`, review the count, then run it with `--apply`. Do this before relying on chronological cursor pagination.
+
+## Deployment commands
+
+The projects should be linked only in ignored `.vercel/` directories:
 
 ```bash
-cd backend
-vercel link --project notevault-api
-vercel env add ALLOWED_ORIGINS production
-vercel env add FIREBASE_CREDENTIALS_JSON production --sensitive
-vercel --prod
+vercel link --cwd frontend --project notevault
+vercel link --cwd backend --project notevault-api
+vercel --prod --cwd backend
+vercel --prod --cwd frontend
 ```
 
-## Local development vs production
+Do not create replacement Projects to fix a Root Directory error. Correct the existing Project settings so GitHub deployments build from `frontend` and `backend` respectively.
 
-| Concern | Local | Production |
-| --- | --- | --- |
-| Frontend URL | http://localhost:5173 | https://notevault-lovat.vercel.app |
-| Backend URL | http://localhost:8000 | https://notevault-api.vercel.app |
-| Firebase credentials | `backend/serviceAccountKey.json` | `FIREBASE_CREDENTIALS_JSON` on Vercel |
-| CORS origins | localhost Vite origins | Exact frontend HTTPS origin |
-| Rate limiting | In-memory process limiter | Same code, best-effort per serverless instance |
+## Smoke verification
 
-## Rate limiting limitation
+Anonymous checks:
 
-Note endpoints use per-user in-memory rate limiting. On Vercel serverless this is **not** a durable, cluster-wide limiter. It only protects within a warm instance. Do not treat it as a complete production rate-limit system. A distributed store (Redis/KV) would be required for global limits; that is intentionally out of scope unless such infrastructure already exists.
-
-## Alternatives
-
-### Railway / Render (backend only)
-
-`backend/railway.json` remains available:
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```text
+GET frontend /
+GET API /health
+GET API /docs
+GET API /openapi.json
+OPTIONS API /notes from the exact frontend Origin
+GET API /notes without a bearer token -> 401
 ```
 
-Set the same production environment variables listed above.
+Authenticated checks: sign in, create, refresh/list, search, tag filter, edit, Load more, delete, and sign out. Browser diagnostics must show no localhost requests, CORS errors, unauthorized-domain errors, mixed content, failed assets, unhandled rejections, token logging, or service-account content.
 
-### Netlify / Cloudflare Pages (frontend)
+## Rollback and limitations
 
-Possible, but the maintained production frontend target is the Vercel `notevault` project.
-
-## Production checks
-
-- [x] `GET /health` returns `{"ok":true,"service":"notevault-api"}`
-- [x] `/docs` and `/openapi.json` load
-- [x] Frontend production page loads without localhost API calls
-- [x] CORS preflight from the frontend origin succeeds
-- [x] Unauthorized origin preflight is rejected
-- [ ] `FIREBASE_CREDENTIALS_JSON` configured on the backend project (required for authenticated note CRUD)
-- [ ] Firebase Authorized Domains includes `notevault-lovat.vercel.app`
-- [ ] End-to-end Google sign-in + note CRUD smoke test
-
-## Firestore rules
-
-Keep the backend-only rules in [firestore-security-rules.md](firestore-security-rules.md). Clients authenticate with Firebase Auth and call the FastAPI backend; they do not talk to Firestore directly.
+Vercel retains immutable deployments; reassign the stable alias to the last Ready deployment if a smoke check fails. The in-memory rate limiter is per warm serverless instance, not globally distributed. Search is bounded to 200 recent notes.

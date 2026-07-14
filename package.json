@@ -25,10 +25,15 @@
     "dev:backend": "uvicorn app.main:app --reload --app-dir backend",
     "install:frontend": "npm --prefix frontend install",
     "test:frontend": "npm --prefix frontend run test",
+    "test:coverage": "npm --prefix frontend run test:coverage",
+    "test:e2e": "npm --prefix frontend run test:e2e",
     "typecheck:frontend": "npm --prefix frontend run typecheck",
     "test:backend": "python -m pytest backend/tests",
+    "test:backend:coverage": "python -m pytest --cov=backend/app --cov-report=term-missing --cov-fail-under=85 backend/tests",
     "check:frontend": "npm --prefix frontend run check",
     "test": "npm run test:frontend && npm run test:backend",
-    "check": "npm run typecheck:frontend && npm test && npm run build:frontend"
+    "contract:generate": "python backend/scripts/export_openapi.py && npm --prefix frontend run contract:generate",
+    "contract:check": "npm run contract:generate && git diff --exit-code -- backend/openapi.json frontend/src/features/notes/generated.ts",
+    "check": "npm run typecheck:frontend && npm test && npm run test:coverage && npm run contract:check && npm run build:frontend"
   }
 }

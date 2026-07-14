@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -37,29 +38,68 @@ class FakeDocumentReference:
         self.id = doc_id
 
     def get(self):
+        if self._collection.operation_error:
+            raise self._collection.operation_error
         return FakeSnapshot(self._collection, self.id, self._collection.documents.get(self.id))
 
     def delete(self):
+        if self._collection.operation_error:
+            raise self._collection.operation_error
         self._collection.documents.pop(self.id, None)
+
+    def update(self, data):
+        if self._collection.operation_error:
+            raise self._collection.operation_error
+        self._collection.documents[self.id].update(dict(data))
 
 
 class FakeQuery:
-    def __init__(self, collection, filters=None, order_field=None):
+    def __init__(self, collection, filters=None, order_fields=None, page_limit=None, after_id=None):
         self._collection = collection
         self._filters = filters or []
-        self._order_field = order_field
+        self._order_fields = order_fields or []
+        self._page_limit = page_limit
+        self._after_id = after_id
 
     def where(self, field, operator, value):
-        return FakeQuery(self._collection, [*self._filters, (field, operator, value)], self._order_field)
+        return FakeQuery(
+            self._collection,
+            [*self._filters, (field, operator, value)],
+            self._order_fields,
+            self._page_limit,
+            self._after_id,
+        )
 
-    def order_by(self, field):
-        if self._filters:
-            raise AssertionError("Filtered order_by requires an undeclared composite index")
-        return FakeQuery(self._collection, self._filters, field)
+    def order_by(self, field, direction=None):
+        return FakeQuery(
+            self._collection,
+            self._filters,
+            [*self._order_fields, (field, direction)],
+            self._page_limit,
+            self._after_id,
+        )
+
+    def limit(self, value):
+        return FakeQuery(
+            self._collection,
+            self._filters,
+            self._order_fields,
+            value,
+            self._after_id,
+        )
+
+    def start_after(self, snapshot):
+        return FakeQuery(
+            self._collection,
+            self._filters,
+            self._order_fields,
+            self._page_limit,
+            snapshot.id,
+        )
 
     def stream(self):
-        if self._collection.stream_error:
-            raise self._collection.stream_error
+        if self._collection.operation_error:
+            raise self._collection.operation_error
 
         items = list(self._collection.documents.items())
 
@@ -68,8 +108,17 @@ class FakeQuery:
                 raise NotImplementedError(operator)
             items = [(doc_id, data) for doc_id, data in items if data.get(field) == value]
 
-        if self._order_field:
-            items.sort(key=lambda item: item[1].get(self._order_field, 0))
+        for field, direction in reversed(self._order_fields):
+            reverse = str(direction).upper().endswith("DESCENDING")
+            items.sort(key=lambda item: _sort_value(item, field), reverse=reverse)
+
+        if self._after_id:
+            ids = [doc_id for doc_id, _ in items]
+            start = ids.index(self._after_id) + 1 if self._after_id in ids else len(items)
+            items = items[start:]
+
+        if self._page_limit is not None:
+            items = items[: self._page_limit]
 
         return [FakeSnapshot(self._collection, doc_id, data) for doc_id, data in items]
 
@@ -78,9 +127,11 @@ class FakeCollection:
     def __init__(self):
         self.documents = {}
         self._counter = 0
-        self.stream_error = None
+        self.operation_error = None
 
     def add(self, data):
+        if self.operation_error:
+            raise self.operation_error
         self._counter += 1
         doc_id = f"note-{self._counter}"
         self.documents[doc_id] = dict(data)
@@ -91,6 +142,16 @@ class FakeCollection:
 
     def where(self, field, operator, value):
         return FakeQuery(self).where(field, operator, value)
+
+
+def _sort_value(item, field):
+    doc_id, data = item
+    if field == "__name__":
+        return doc_id
+    value = data.get(field, 0)
+    if isinstance(value, datetime):
+        return value.timestamp() * 1000
+    return value
 
 
 class FakeFirestore:
