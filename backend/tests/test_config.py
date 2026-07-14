@@ -16,6 +16,18 @@ def test_production_rejects_wildcard_origins(monkeypatch):
     get_settings.cache_clear()
 
 
+def test_reads_lowercase_firebase_credentials_env(monkeypatch):
+    monkeypatch.delenv("FIREBASE_CREDENTIALS_JSON", raising=False)
+    monkeypatch.setenv("firebase_credentials_json", '{"type":"service_account","project_id":"demo"}')
+    get_settings.cache_clear()
+
+    settings = Settings()
+    assert settings.firebase_credentials_json == '{"type":"service_account","project_id":"demo"}'
+
+    get_settings.cache_clear()
+    os.environ.pop("firebase_credentials_json", None)
+
+
 def test_production_accepts_explicit_origins(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("ALLOWED_ORIGINS", "https://notevault.vercel.app")

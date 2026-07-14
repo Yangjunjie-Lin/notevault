@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-07-14
+
+### Changed
+
+- Integrated the redesigned NoteVault workspace into the production frontend.
+- Migrated the frontend to strict TypeScript and feature-oriented module boundaries.
+- Reworked authentication restoration and note loading to prevent UI flashes, duplicate requests, and stale-response races.
+- Updated project documentation and CI to match the production architecture.
+
+### Added
+
+- Accessible confirmation, error, loading, empty, and filtered-empty states.
+- Clickable tag filtering and direct filter reset actions.
+- Integration coverage for write/preview, create, search, clear, tag filter, delete confirmation, and signed-out flows.
+- A dedicated architecture guide.
+
 ## 2026-06-25
 
 ### Changed
@@ -25,4 +41,3 @@
 - Old Vercel serverless `api/` implementation.
 - Duplicated root `src/`, `index.html`, and `vite.config.js`.
 - Outdated deployment and quick-reference documents that no longer matched the project.
-

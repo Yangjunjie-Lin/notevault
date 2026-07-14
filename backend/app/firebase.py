@@ -38,17 +38,17 @@ def _initialize_firebase() -> None:
             credential_data = json.loads(settings.firebase_credentials_json)
         except json.JSONDecodeError as exc:
             raise RuntimeError(
-                "FIREBASE_CREDENTIALS_JSON is not valid JSON. "
+                "firebase_credentials_json / FIREBASE_CREDENTIALS_JSON is not valid JSON. "
                 "Provide the full service account object as a single-line JSON string."
             ) from exc
 
         if not isinstance(credential_data, dict) or credential_data.get("type") != "service_account":
             raise RuntimeError(
-                "FIREBASE_CREDENTIALS_JSON must be a Firebase service account JSON object."
+                "firebase_credentials_json must be a Firebase service account JSON object."
             )
 
         firebase_admin.initialize_app(credentials.Certificate(credential_data))
-        logger.info("Initialized Firebase from FIREBASE_CREDENTIALS_JSON")
+        logger.info("Initialized Firebase from service account environment variable")
         return
 
     for credential_path in _credential_file_candidates():
@@ -58,9 +58,9 @@ def _initialize_firebase() -> None:
             return
 
     raise RuntimeError(
-        "Firebase credentials were not found. Set FIREBASE_CREDENTIALS_JSON for "
-        "production, set FIREBASE_CREDENTIALS_PATH, or place serviceAccountKey.json "
-        "in the backend directory for local development."
+        "Firebase credentials were not found. Set firebase_credentials_json (or "
+        "FIREBASE_CREDENTIALS_JSON) for production, set firebase_credentials_path, "
+        "or place serviceAccountKey.json in the backend directory for local development."
     )
 
 

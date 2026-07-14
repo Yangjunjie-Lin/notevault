@@ -25,7 +25,10 @@
     "dev:backend": "uvicorn app.main:app --reload --app-dir backend",
     "install:frontend": "npm --prefix frontend install",
     "test:frontend": "npm --prefix frontend run test",
+    "typecheck:frontend": "npm --prefix frontend run typecheck",
     "test:backend": "python -m pytest backend/tests",
-    "test": "npm run test:frontend && npm run test:backend"
+    "check:frontend": "npm --prefix frontend run check",
+    "test": "npm run test:frontend && npm run test:backend",
+    "check": "npm run typecheck:frontend && npm test && npm run build:frontend"
   }
 }

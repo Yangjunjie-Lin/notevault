@@ -1,5 +1,10 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+} from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -18,18 +23,18 @@ export const firebaseConfigError = missingKeys.length
   ? `Missing Firebase config values: ${missingKeys.join(', ')}`
   : ''
 
-export const app = firebaseConfigError ? null : initializeApp(firebaseConfig)
-export const auth = app ? getAuth(app) : null
+export const firebaseApp = firebaseConfigError ? null : initializeApp(firebaseConfig)
+export const auth = firebaseApp ? getAuth(firebaseApp) : null
 
-const provider = new GoogleAuthProvider()
+const googleProvider = new GoogleAuthProvider()
+googleProvider.setCustomParameters({ prompt: 'select_account' })
 
 export function signInWithGoogle() {
   if (!auth) return Promise.reject(new Error(firebaseConfigError))
-  return signInWithPopup(auth, provider)
+  return signInWithPopup(auth, googleProvider)
 }
 
 export function logout() {
   if (!auth) return Promise.resolve()
   return signOut(auth)
 }
-

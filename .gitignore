@@ -23,3 +23,6 @@ dist/
 .idea/
 .vercel/
 .vercel
+
+# Local Figma Make export; production code lives in frontend/src.
+/Revamp NoteVault UI/

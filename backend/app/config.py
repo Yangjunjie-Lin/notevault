@@ -28,8 +28,13 @@ class Settings:
                 ",".join(LOCAL_DEV_ORIGINS),
             )
         )
-        self.firebase_credentials_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
-        self.firebase_credentials_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
+        # Vercel UI may normalize env keys to lowercase; accept both spellings.
+        self.firebase_credentials_json = os.getenv("FIREBASE_CREDENTIALS_JSON") or os.getenv(
+            "firebase_credentials_json"
+        )
+        self.firebase_credentials_path = os.getenv("FIREBASE_CREDENTIALS_PATH") or os.getenv(
+            "firebase_credentials_path"
+        )
 
     @property
     def is_production(self) -> bool:

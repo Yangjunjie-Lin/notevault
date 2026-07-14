@@ -15,6 +15,7 @@ Frontend:
 
 ```bash
 npm run test:frontend
+npm run typecheck:frontend
 npm run build:frontend
 ```
 

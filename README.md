@@ -6,7 +6,7 @@
 ![Firebase](https://img.shields.io/badge/Firebase-Auth%20%2B%20Firestore-FFCA28?logo=firebase&logoColor=111111)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=ffffff)
 
-NoteVault is a full-stack note-taking application built with React, FastAPI, Firebase Authentication, and Firestore. It uses Google sign-in on the frontend and verifies Firebase ID tokens on the backend before reading or writing user-owned notes.
+NoteVault is a full-stack, Markdown-first note-taking application built with React, TypeScript, FastAPI, Firebase Authentication, and Firestore. It uses Google sign-in on the frontend and verifies Firebase ID tokens on the backend before reading or writing user-owned notes.
 
 The repository is structured as a production-oriented GitHub project: clear frontend/backend boundaries, environment-based configuration, typed API schemas, documented deployment paths, security guidance, automated tests, and a CI workflow.
 
@@ -17,6 +17,10 @@ The repository is structured as a production-oriented GitHub project: clear fron
 - Search across note text and tags
 - Tag creation and tag-based filtering
 - Markdown writing with live preview and rendered note display
+- Responsive, keyboard-accessible workspace with complete loading, empty, error, and confirmation states
+- Clickable note tags for instant filtering and explicit filter reset flows
+- Abortable note queries that prevent stale responses from overwriting newer results
+- Strict TypeScript checks and integration tests for every primary UI action
 - Per-user in-memory API rate limiting for note endpoints (best-effort; not a distributed global limiter on Vercel)
 - FastAPI OpenAPI documentation at `/docs`
 - Backend pytest coverage with a fake Firestore test double
@@ -27,10 +31,10 @@ The repository is structured as a production-oriented GitHub project: clear fron
 
 | Layer | Technology | Purpose |
 | --- | --- | --- |
-| Frontend | React 18 | Component-based user interface |
+| Frontend | React 18 + TypeScript | Type-safe, component-based user interface |
 | Frontend tooling | Vite 7 | Local dev server and production bundling |
 | Markdown | react-markdown, remark-gfm | Safe Markdown preview and rendering |
-| Frontend tests | Vitest, Testing Library, jsdom | Smoke testing the authenticated workspace |
+| Frontend tests | Vitest, Testing Library, jsdom | Integration testing authentication and note workflows |
 | Authentication | Firebase Authentication | Google OAuth sign-in and ID tokens |
 | Backend | FastAPI | HTTP API, routing, validation, and OpenAPI docs |
 | Backend runtime | Python 3.12 | API runtime |
@@ -53,7 +57,7 @@ flowchart LR
   auth --> browser
 ```
 
-The frontend signs users in with Firebase Authentication and sends the Firebase ID token to the FastAPI backend in an `Authorization: Bearer <token>` header. The backend verifies the token with Firebase Admin SDK, applies a per-user rate limit, and scopes note operations to the authenticated Firebase user ID. Notes are not accessed directly from the browser against Firestore.
+The frontend signs users in with Firebase Authentication and sends the Firebase ID token to the FastAPI backend in an `Authorization: Bearer <token>` header. The backend verifies the token with Firebase Admin SDK, applies a per-user rate limit, and scopes note operations to the authenticated Firebase user ID. Notes are not accessed directly from the browser against Firestore. See [docs/architecture.md](docs/architecture.md) for module boundaries, state ownership, request flow, and extension rules.
 
 ## Project Structure
 
@@ -76,14 +80,18 @@ notevault/
 |   `-- requirements-dev.txt
 |-- frontend/
 |   |-- src/
-|   |   |-- components/
-|   |   |-- App.jsx
-|   |   |-- App.smoke.test.jsx
-|   |   |-- api.js
-|   |   `-- firebase.js
+|   |   |-- app/                 # Composition root and integration tests
+|   |   |-- features/
+|   |   |   |-- auth/           # Firebase adapter and auth UI
+|   |   |   `-- notes/          # Note API, types, and workflow UI
+|   |   |-- shared/components/  # Cross-feature feedback primitives
+|   |   |-- styles/             # Design tokens and responsive system
+|   |   `-- main.tsx
+|   |-- tsconfig.json
 |   |-- package.json
-|   `-- vite.config.js
+|   `-- vite.config.ts
 |-- docs/
+|   |-- architecture.md
 |   |-- deployment.md
 |   |-- firebase.md
 |   `-- firestore-security-rules.md
@@ -220,7 +228,8 @@ These commands are also encoded in [.github/workflows/ci.yml](.github/workflows/
 
 | Check | Command |
 | --- | --- |
-| Frontend smoke test | `npm run test:frontend` |
+| Frontend type check | `npm run typecheck:frontend` |
+| Frontend integration tests | `npm run test:frontend` |
 | Frontend production build | `npm run build:frontend` |
 | Frontend production dependency audit | `cd frontend && npm audit --omit=dev` |
 | Backend tests | `npm run test:backend` |
@@ -243,9 +252,12 @@ Root-level scripts:
 | `npm run build:frontend` | Build the frontend for production |
 | `npm run preview:frontend` | Preview the production frontend build |
 | `npm run dev:backend` | Start the FastAPI backend with reload |
-| `npm run test:frontend` | Run the frontend smoke test |
+| `npm run typecheck:frontend` | Run strict TypeScript validation |
+| `npm run test:frontend` | Run frontend integration tests |
+| `npm run check:frontend` | Type-check, test, and build the frontend |
 | `npm run test:backend` | Run backend pytest tests |
 | `npm test` | Run frontend and backend tests |
+| `npm run check` | Run the complete local quality gate |
 
 Backend can also be started directly:
 
