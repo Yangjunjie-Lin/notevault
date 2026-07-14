@@ -1,6 +1,22 @@
 import { auth } from './firebase'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+function resolveApiBaseUrl() {
+  const configured = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/+$/, '')
+
+  if (configured) {
+    return configured
+  }
+
+  if (import.meta.env.PROD) {
+    throw new Error(
+      'Missing VITE_API_BASE_URL. Set it to the production FastAPI URL before building.',
+    )
+  }
+
+  return 'http://localhost:8000'
+}
+
+const API_BASE_URL = resolveApiBaseUrl()
 
 function buildUrl(path, params = {}) {
   const searchParams = new URLSearchParams()
@@ -10,7 +26,8 @@ function buildUrl(path, params = {}) {
   })
 
   const query = searchParams.toString()
-  return `${API_BASE_URL}${path}${query ? `?${query}` : ''}`
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${API_BASE_URL}${normalizedPath}${query ? `?${query}` : ''}`
 }
 
 async function authFetch(path, options = {}) {

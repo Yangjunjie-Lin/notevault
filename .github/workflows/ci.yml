@@ -32,6 +32,14 @@ jobs:
 
       - name: Build
         working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://notevault-api.vercel.app
+          VITE_FIREBASE_API_KEY: ci-placeholder
+          VITE_FIREBASE_AUTH_DOMAIN: example.firebaseapp.com
+          VITE_FIREBASE_PROJECT_ID: example
+          VITE_FIREBASE_STORAGE_BUCKET: example.appspot.com
+          VITE_FIREBASE_MESSAGING_SENDER_ID: "0"
+          VITE_FIREBASE_APP_ID: "1:0:web:ci"
         run: npm run build
 
       - name: Audit production dependencies
@@ -57,6 +65,24 @@ jobs:
       - name: Compile modules
         run: python -m compileall backend/app
 
+      - name: Import smoke check
+        run: python -c "import sys; sys.path.insert(0, 'backend'); from app.main import app; assert app.title"
+
       - name: Run tests
         run: python -m pytest backend/tests
 
+  hygiene:
+    name: Hygiene
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require MIT license and ignore secrets
+        run: |
+          test -f LICENSE
+          grep -q "MIT License" LICENSE
+          grep -q "\.vercel/" .gitignore || grep -q "^\.vercel$" .gitignore
+          grep -q "serviceAccountKey.json" .gitignore
+          ! git ls-files | grep -E '(^|/)\.env$|serviceAccountKey\.json|\.vercel/'

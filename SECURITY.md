@@ -20,6 +20,8 @@ Never commit:
 
 Use deployment platform environment variables for production secrets. Prefer `FIREBASE_CREDENTIALS_JSON` for backend deployments.
 
+On Vercel serverless, the in-memory rate limiter is best-effort per instance and must not be described as a distributed global rate limit.
+
 ## Authentication Model
 
 The frontend obtains Firebase ID tokens through Firebase Authentication. The backend verifies those tokens with Firebase Admin SDK and scopes note operations by the verified Firebase user ID.

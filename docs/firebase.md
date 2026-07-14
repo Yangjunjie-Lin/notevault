@@ -13,6 +13,10 @@ Add local development domains if needed:
 - `localhost`
 - `127.0.0.1`
 
+For production, also add the live frontend hostname, for example:
+
+- `notevault-lovat.vercel.app`
+
 ## 3. Create a Web App
 
 In Project settings -> General, create or select a Web App and copy its config values into `.env`:

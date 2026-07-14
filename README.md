@@ -17,11 +17,11 @@ The repository is structured as a production-oriented GitHub project: clear fron
 - Search across note text and tags
 - Tag creation and tag-based filtering
 - Markdown writing with live preview and rendered note display
-- Per-user in-memory API rate limiting for note endpoints
+- Per-user in-memory API rate limiting for note endpoints (best-effort; not a distributed global limiter on Vercel)
 - FastAPI OpenAPI documentation at `/docs`
 - Backend pytest coverage with a fake Firestore test double
 - Frontend React smoke test with Vitest and Testing Library
-- Firestore Security Rules guidance for backend-only and direct-client models
+- Firestore Security Rules guidance for the backend-only access model
 
 ## Tech Stack
 
@@ -38,21 +38,22 @@ The repository is structured as a production-oriented GitHub project: clear fron
 | Data store | Cloud Firestore | Per-user note storage |
 | Backend SDK | Firebase Admin SDK | Token verification and privileged Firestore access |
 | CI | GitHub Actions | Frontend tests/build/audit and backend tests |
-| Deployment targets | Vercel, Netlify, Railway, Render, Fly.io | Static frontend and Python API hosting |
+| Deployment targets | Vercel (primary), Railway/Render (backend alternatives) | Frontend + FastAPI hosted as two Vercel Projects from one monorepo |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
   browser["Browser / React App"] --> auth["Firebase Authentication"]
-  browser --> api["FastAPI Backend"]
-  api --> limiter["Rate Limiter"]
+  browser --> frontend["Vercel: notevault\nfrontend/"]
+  frontend --> api["Vercel: notevault-api\nFastAPI backend/"]
+  api --> limiter["In-memory rate limiter\nper instance"]
   api --> admin["Firebase Admin SDK"]
   admin --> firestore["Cloud Firestore"]
   auth --> browser
 ```
 
-The frontend signs users in with Firebase Authentication and sends the Firebase ID token to the FastAPI backend in an `Authorization: Bearer <token>` header. The backend verifies the token with Firebase Admin SDK, applies a per-user rate limit, and scopes note operations to the authenticated Firebase user ID.
+The frontend signs users in with Firebase Authentication and sends the Firebase ID token to the FastAPI backend in an `Authorization: Bearer <token>` header. The backend verifies the token with Firebase Admin SDK, applies a per-user rate limit, and scopes note operations to the authenticated Firebase user ID. Notes are not accessed directly from the browser against Firestore.
 
 ## Project Structure
 
@@ -103,8 +104,8 @@ notevault/
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
-cd notevault
+git clone https://github.com/Yangjunjie-Lin/personal-notebook-app.git
+cd personal-notebook-app
 ```
 
 ### 2. Configure environment variables
@@ -183,9 +184,11 @@ Default local URLs:
 | `VITE_FIREBASE_STORAGE_BUCKET` | Frontend | Yes | Firebase storage bucket |
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | Frontend | Yes | Firebase messaging sender ID |
 | `VITE_FIREBASE_APP_ID` | Frontend | Yes | Firebase Web App ID |
-| `ALLOWED_ORIGINS` | Backend | Yes | Comma-separated list of allowed frontend origins |
+| `ALLOWED_ORIGINS` | Backend | Yes | Comma-separated list of allowed frontend origins (exact origins in production; `*` rejected when `ENVIRONMENT=production`) |
+| `ENVIRONMENT` | Backend | Production recommended | Set to `production` on Vercel |
+| `APP_NAME` / `APP_VERSION` | Backend | Optional | OpenAPI metadata overrides |
 | `FIREBASE_CREDENTIALS_PATH` | Backend | Local only | Path to a local service account JSON file |
-| `FIREBASE_CREDENTIALS_JSON` | Backend | Production recommended | Service account JSON as a single-line string |
+| `FIREBASE_CREDENTIALS_JSON` | Backend | Production required | Service account JSON as a single-line string |
 
 ## API Reference
 
@@ -254,19 +257,27 @@ uvicorn app.main:app --reload --app-dir backend
 
 | Target | Link |
 | --- | --- |
-| Frontend live app | Add the deployed frontend URL after release |
-| Backend health check | Add the deployed `/health` URL after release |
-| Backend API docs | Add the deployed `/docs` URL after release |
+| Frontend live app | [Open NoteVault](https://notevault-lovat.vercel.app) |
+| Backend health check | [Health](https://notevault-api.vercel.app/health) |
+| Backend API docs | [Swagger UI](https://notevault-api.vercel.app/docs) |
+| OpenAPI schema | [openapi.json](https://notevault-api.vercel.app/openapi.json) |
 | Deployment guide | [docs/deployment.md](docs/deployment.md) |
-| Railway backend config | [backend/railway.json](backend/railway.json) |
+| Railway backend config (alternative) | [backend/railway.json](backend/railway.json) |
 | Vercel frontend config | [frontend/vercel.json](frontend/vercel.json) |
+| Backend Vercel entrypoint | [backend/pyproject.toml](backend/pyproject.toml) |
 | CI workflow | [.github/workflows/ci.yml](.github/workflows/ci.yml) |
+| License | [LICENSE](LICENSE) |
 
-Recommended deployment model:
+Production deployment model:
 
-- Deploy `frontend/` as a static site.
-- Deploy `backend/` as a Python/FastAPI service.
-- Use Firebase for Authentication and Firestore.
+- Same GitHub repository, two Vercel Projects: `notevault` (`frontend/`) and `notevault-api` (`backend/`).
+- Firebase Authentication + Firestore via Firebase Admin on the backend only.
+- Railway remains an optional backend alternative; Vercel is the current official production stack.
+
+### Production limitations
+
+- In-memory rate limiting is best-effort per Vercel serverless instance, not a durable cluster-wide limiter.
+- Authenticated note CRUD requires `FIREBASE_CREDENTIALS_JSON` on the backend Vercel project and the frontend hostname in Firebase Authorized Domains.
 
 ## Security
 
@@ -282,4 +293,4 @@ Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before
 
 ## License
 
-No license has been added yet. Add a license before distributing this project publicly.
+This project is released under the [MIT License](LICENSE). Copyright (c) 2026 Yangjunjie Lin.
