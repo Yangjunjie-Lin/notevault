@@ -226,7 +226,9 @@ test('axe: signed-out, empty, list, edit, preview, and dialogs', async ({ page, 
   await expectNoAxeViolations(page, 'delete dialog')
 })
 
-test('axe: API error and mobile viewport', async ({ page }) => {
+test('axe: API error and mobile viewport @smoke', async ({ page }) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
   await page.setViewportSize({ width: 390, height: 844 })
   await page.route('**/notes?*', (route) => route.fulfill({
     status: 503,
@@ -237,4 +239,5 @@ test('axe: API error and mobile viewport', async ({ page }) => {
   await expect(page.getByRole('alert')).toBeVisible()
   await expectNoAxeViolations(page, 'mobile API error state')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  expect(pageErrors).toEqual([])
 })
