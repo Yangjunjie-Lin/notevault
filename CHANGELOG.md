@@ -12,19 +12,20 @@
 ### Added
 
 - Mutation-focused backend/frontend tests and a 25-note boundary-deletion Playwright workflow.
-- Optimized `vite build --mode e2e` + `vite preview` coverage with Chromium full, Firefox/WebKit smoke, axe, failure diagnostics, and isolated test reset/seed routes.
+- Optimized `vite build --mode e2e` + `vite preview` coverage with Chromium full, Firefox/WebKit smoke, mobile viewport smoke, axe, failure diagnostics, and isolated test reset/seed routes.
 - Real Firestore SDK tests under the Firestore Emulator, an anonymous production smoke workflow, Dependabot, maintenance policy, and structured issue templates.
 - `Retry-After` on in-memory 429 responses and a low-frequency maintenance dependency policy.
 
 ### Changed
 
-- Version 2 cursor payloads bind the verified UID, mode, filter fingerprint, creation time, and document ID with HMAC-SHA256.
+- Version 2 timeline cursor payloads bind the verified UID, mode, filter fingerprint, creation time, and document ID with HMAC-SHA256.
+- Clarified that filtered search uses bounded recent-note scanning and signed offset pagination rather than claiming mutation-safe snapshot consistency.
 - Existing in-memory cursors are invalidated after deployment; reloading the notes list resolves this automatically.
 - Marked NoteVault stable, feature-complete, and in maintenance mode. No new product-scope features are planned.
 
 ### Known limitations
 
-- Cursor continuation is not a frozen Firestore snapshot; filtered search remains a bounded recent-200-note scan.
+- Main-timeline cursor continuation is not a frozen Firestore snapshot; filtered search remains a bounded recent-200-note scan with offset pagination.
 - Rate limiting is best-effort per warm serverless instance, not global.
 - Firestore Emulator verifies SDK query behavior but does not fully reproduce production composite-index enforcement.
 

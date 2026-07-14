@@ -4,8 +4,9 @@ NoteVault 1.1.0 closes the final pagination and deployment-boundary gaps without
 
 ## Highlights
 
-- Mutation-safe version 2 cursor pagination continues after the boundary note is edited or deleted.
-- Production-preview Playwright runs Chromium full workflows, Firefox/WebKit smoke, and axe checks.
+- Mutation-safe version 2 cursor pagination keeps the main timeline moving after the boundary note is edited or deleted.
+- Filtered search remains intentionally bounded to the 200 most recent owned notes and continues by signed offset rather than claiming snapshot consistency.
+- Production-preview Playwright runs Chromium full workflows, Firefox/WebKit smoke, a maintained mobile viewport smoke, and axe checks.
 - Real Firestore SDK integration covers ordering, document-name continuation, Timestamp values, ownership, update/delete, and boundary deletion under the Emulator.
 - One safe Markdown contract blocks raw HTML and unsafe protocols in both note cards and editor preview.
 - Production auth bypass is rejected at Vite configuration time, before an ordinary production bundle can be created.
@@ -17,8 +18,8 @@ Existing in-memory version 1 cursors are invalidated after deployment. Reloading
 
 ## Known limitations
 
-- Cursor pagination is stable continuation, not snapshot isolation.
-- Search/filter scans at most the 200 most recent owned notes.
+- Main-timeline cursor pagination provides stable continuation, not snapshot isolation.
+- Filtered search scans at most the 200 most recent owned notes and uses bounded offset pagination; concurrent matching mutations can shift later search pages.
 - Rate limiting is per warm Vercel instance, not globally distributed.
 - Firestore Emulator does not fully enforce production composite indexes.
 - Authenticated production acceptance and both Vercel Project settings require operator access.
