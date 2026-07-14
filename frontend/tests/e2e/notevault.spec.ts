@@ -226,7 +226,7 @@ test('axe: signed-out, empty, list, edit, preview, and dialogs', async ({ page, 
   await expectNoAxeViolations(page, 'delete dialog')
 })
 
-test('axe: API error and mobile viewport', async ({ page }) => {
+test('axe: API error and mobile viewport @smoke', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.route('**/notes?*', (route) => route.fulfill({
     status: 503,
