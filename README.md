@@ -1,6 +1,6 @@
 # NoteVault
 
-NoteVault is a feature-complete, production-oriented Markdown notebook with Firebase-authenticated user isolation, a typed FastAPI contract, mutation-safe cursor pagination, bounded Firestore access, and automated cross-browser quality gates.
+NoteVault is a feature-complete, production-oriented Markdown notebook with Firebase-authenticated user isolation, a typed FastAPI contract, mutation-safe timeline cursor pagination, bounded filtered search, and automated cross-browser quality gates.
 
 Project status: **Stable · Feature-complete · Production deployed · Maintenance mode · Portfolio flagship**. Future work is limited to security, compatibility, reproducible bugs, accessibility, and verified reliability improvements; see [docs/maintenance.md](docs/maintenance.md).
 
@@ -11,7 +11,8 @@ Project status: **Stable · Feature-complete · Production deployed · Maintenan
 - Markdown write/preview and safe GitHub Flavored Markdown rendering
 - Normalized tags, text search, exact tag filtering, and clear-filter flows
 - Reusable left Composer for editing, with save/cancel and unsaved-change confirmation
-- Mutation-safe HMAC cursor pagination and a Load more interaction that appends and deduplicates notes
+- Mutation-safe HMAC cursor pagination for the main timeline, with Load more that appends and deduplicates notes
+- Bounded filtered search across the most recent 200 owned notes, with explicit search-limit feedback
 - `createdAt` preservation and an optional `updatedAt` timestamp for legacy compatibility
 - Abortable initial and pagination requests with stale-response protection
 - Existing responsive NoteVault design system, keyboard access, focus management, and reduced motion
@@ -160,11 +161,11 @@ List response:
 }
 ```
 
-`limit` defaults to 20 and is restricted to 1–50. Version 2 cursors are opaque HMAC-SHA256 values bound to the verified UID, mode, and active-filter fingerprint. Unfiltered continuation uses signed `createdAt` and document-ID field values, so deleting or editing the boundary note does not invalidate the next page. Cursor pagination provides stable continuation keys, not a frozen database snapshot.
+`limit` defaults to 20 and is restricted to 1–50. Version 2 cursors are opaque HMAC-SHA256 values bound to the verified UID, mode, and active-filter fingerprint. Unfiltered timeline continuation uses signed `createdAt` and document-ID field values, so deleting or editing the boundary note does not invalidate the next page. Timeline cursor pagination provides stable continuation keys, not a frozen database snapshot.
 
 ### Search trade-off
 
-Firestore is not a substring full-text engine. When `q` or `tag` is present, the API reads at most the most recent 200 owned notes, normalizes them, and filters that bounded set in memory. `searchLimited: true` tells the UI that older notes were not scanned. This avoids unbounded reads without introducing Algolia, Elasticsearch, or another paid service.
+Firestore is not a substring full-text engine. When `q` or `tag` is present, the API reads at most the most recent 200 owned notes, normalizes them, filters that bounded set in memory, and paginates it with a signed offset bound to the active filters. `searchLimited: true` tells the UI that older notes were not scanned. This bounded filtered view is not a frozen database snapshot, so concurrent matching additions or removals can change later search pages. The design avoids unbounded reads without introducing Algolia, Elasticsearch, or another paid service.
 
 ## Firestore index and timestamp migration
 
@@ -241,7 +242,7 @@ Production limitations:
 - Rate limiting is in-memory and best-effort per warm Vercel instance, not distributed.
 - Firebase Authorized Domains must include the exact frontend hostname.
 - Firestore index creation and any legacy timestamp migration are operator steps.
-- Pagination is not snapshot isolation; concurrent changes are handled with stable continuation keys and client ID deduplication.
+- Timeline pagination is not snapshot isolation; it uses stable continuation keys and client ID deduplication. Filtered search uses bounded offset pagination and may shift under concurrent matching mutations.
 
 ## Security and contributing
 
