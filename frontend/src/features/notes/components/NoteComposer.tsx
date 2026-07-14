@@ -181,15 +181,9 @@ export default function NoteComposer({ onAdd, loading }: Props) {
           </div>
         )}
 
-        {/* ── Markdown hint ── */}
-        <div className="nv-md-hint" aria-label="Markdown syntax hints">
+        <div className="nv-md-support">
           <MarkdownBadge />
-          <code>**bold**</code>
-          <code>*italic*</code>
-          <code># Heading</code>
-          <code>`code`</code>
-          <code>- [ ] task</code>
-          <code>{'> quote'}</code>
+          Markdown formatting supported
         </div>
 
         {/* ── Tags ── */}

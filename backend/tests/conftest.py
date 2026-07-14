@@ -53,9 +53,14 @@ class FakeQuery:
         return FakeQuery(self._collection, [*self._filters, (field, operator, value)], self._order_field)
 
     def order_by(self, field):
+        if self._filters:
+            raise AssertionError("Filtered order_by requires an undeclared composite index")
         return FakeQuery(self._collection, self._filters, field)
 
     def stream(self):
+        if self._collection.stream_error:
+            raise self._collection.stream_error
+
         items = list(self._collection.documents.items())
 
         for field, operator, value in self._filters:
@@ -73,6 +78,7 @@ class FakeCollection:
     def __init__(self):
         self.documents = {}
         self._counter = 0
+        self.stream_error = None
 
     def add(self, data):
         self._counter += 1
@@ -116,4 +122,3 @@ def client(fake_db):
     app.dependency_overrides.clear()
     read_notes_limiter.reset()
     write_notes_limiter.reset()
-

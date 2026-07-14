@@ -641,22 +641,13 @@ img { max-width: 100%; display: block; }
   box-shadow: 0 1px 3px rgba(26,25,23,0.12);
 }
 
-/* Markdown hint */
-.nv-md-hint {
+/* Markdown support note */
+.nv-md-support {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   font-size: 0.7375rem;
   color: var(--nv-text-muted);
-}
-.nv-md-hint code {
-  font-family: var(--nv-font-mono);
-  font-size: 0.6875rem;
-  background: #f0ede8;
-  padding: 1px 4px;
-  border-radius: 3px;
-  color: var(--nv-text-secondary);
 }
 
 /* Tag input section */

@@ -1,4 +1,7 @@
+from datetime import datetime, timezone
+
 from app.rate_limit import write_notes_limiter
+from google.api_core.exceptions import GoogleAPICallError
 
 
 def seed_note(fake_db, doc_id, uid="user-1", text="Example", tags=None, created_at=1000):
@@ -51,6 +54,48 @@ def test_list_notes_supports_search_and_tag_filters(client, fake_db):
     assert [note["id"] for note in tag_response.json()["notes"]] == ["b"]
 
 
+def test_list_notes_sorts_without_requiring_a_composite_index(client, fake_db):
+    seed_note(fake_db, "older", created_at=1000)
+    seed_note(fake_db, "newer", created_at=3000)
+    seed_note(fake_db, "middle", created_at=2000)
+
+    response = client.get("/notes")
+
+    assert response.status_code == 200
+    assert [note["id"] for note in response.json()["notes"]] == ["newer", "middle", "older"]
+
+
+def test_list_notes_normalizes_legacy_firestore_timestamps(client, fake_db):
+    seed_note(
+        fake_db,
+        "legacy",
+        created_at=datetime(2026, 7, 14, 10, 0, tzinfo=timezone.utc),
+    )
+    seed_note(fake_db, "current", created_at=1784026800000)
+
+    response = client.get("/notes")
+
+    assert response.status_code == 200
+    notes = response.json()["notes"]
+    assert [note["id"] for note in notes] == ["current", "legacy"]
+    assert notes[1]["createdAt"] == 1784023200000
+
+
+def test_list_notes_returns_readable_error_when_firestore_is_unavailable(client, fake_db):
+    fake_db.notes.stream_error = GoogleAPICallError("Firestore unavailable")
+
+    response = client.get(
+        "/notes",
+        headers={"Origin": "http://localhost:5173"},
+    )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "Notes are temporarily unavailable. Please try again."
+    }
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
 def test_delete_note_hides_other_users_notes(client, fake_db):
     seed_note(fake_db, "other-user-note", uid="user-2")
 
@@ -74,4 +119,3 @@ def test_write_rate_limit_returns_429(client):
 
     assert first_response.status_code == 201
     assert second_response.status_code == 429
-

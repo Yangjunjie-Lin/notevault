@@ -16,6 +16,13 @@
 - Integration coverage for write/preview, create, search, clear, tag filter, delete confirmation, and signed-out flows.
 - A dedicated architecture guide.
 
+### Fixed
+
+- Removed the Firestore compound query that required an undeclared `uid + createdAt` index and prevented authenticated users from loading notes.
+- Converted Firestore read failures into a readable `503` API response with CORS headers instead of a browser-level network error.
+- Replaced raw Markdown syntax examples in the composer with a concise support label.
+- Normalized legacy Firestore Timestamp values to the frontend millisecond contract so existing notes remain readable.
+
 ## 2026-06-25
 
 ### Changed

@@ -1,7 +1,10 @@
+import logging
 import time
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from google.api_core.exceptions import GoogleAPICallError
 
 from ..firebase import get_firestore_client
 from ..rate_limit import read_limited_uid, write_limited_uid
@@ -9,6 +12,7 @@ from ..schemas import CreateNoteResponse, DeleteNoteResponse, NoteCreate, NoteOu
 
 
 router = APIRouter(prefix="/notes", tags=["notes"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("", response_model=NotesResponse)
@@ -18,24 +22,29 @@ def list_notes(
     uid: str = Depends(read_limited_uid),
 ):
     db = get_firestore_client()
-    docs = (
-        db.collection("notes")
-        .where("uid", "==", uid)
-        .order_by("createdAt")
-        .stream()
-    )
+    try:
+        # Query only by owner so Firestore can use its automatic single-field
+        # index. Ordering is applied below and does not require a composite
+        # uid + createdAt index in every deployment.
+        docs = db.collection("notes").where("uid", "==", uid).stream()
 
-    notes = []
-    for doc in docs:
-        data = doc.to_dict()
-        note = NoteOut(
-            id=doc.id,
-            text=data.get("text", ""),
-            tags=data.get("tags", []),
-            createdAt=data.get("createdAt", 0),
-        )
-        if _matches_filters(note=note, q=q, tag=tag):
-            notes.append(note)
+        notes = []
+        for doc in docs:
+            data = doc.to_dict()
+            note = NoteOut(
+                id=doc.id,
+                text=data.get("text", ""),
+                tags=data.get("tags", []),
+                createdAt=_created_at_milliseconds(data.get("createdAt")),
+            )
+            if _matches_filters(note=note, q=q, tag=tag):
+                notes.append(note)
+    except GoogleAPICallError as exc:
+        logger.exception("Firestore failed while listing notes")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Notes are temporarily unavailable. Please try again.",
+        ) from exc
 
     notes.sort(key=lambda note: note.createdAt, reverse=True)
     return NotesResponse(notes=notes)
@@ -99,3 +108,12 @@ def _matches_filters(note: NoteOut, q: str | None, tag: str | None) -> bool:
             return False
 
     return True
+
+
+def _created_at_milliseconds(value: object) -> int:
+    """Normalize current millisecond values and legacy Firestore timestamps."""
+    if isinstance(value, datetime):
+        return int(value.timestamp() * 1000)
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return int(value)
+    return 0
