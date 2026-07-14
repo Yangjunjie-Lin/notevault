@@ -10,7 +10,7 @@ Maintenance mode
 Portfolio flagship
 ```
 
-NoteVault is a feature-complete, production-oriented Markdown notebook with Firebase-authenticated user isolation, a typed FastAPI contract, mutation-safe cursor pagination, bounded Firestore access, and automated cross-browser quality gates.
+NoteVault is a feature-complete, production-oriented Markdown notebook with Firebase-authenticated user isolation, a typed FastAPI contract, mutation-safe timeline cursor pagination, bounded offset pagination for filtered search, bounded Firestore access, and automated cross-browser quality gates.
 
 Production status is a two-boundary claim: both `notevault` and `notevault-api` must be Ready and the release smoke checklist must pass. A single Vercel status is insufficient.
 
@@ -38,7 +38,7 @@ Production status is a two-boundary claim: both `notevault` and `notevault-api` 
 - [ ] `python -m compileall backend/app`
 - [ ] `npm run test:backend:coverage`
 - [ ] `npm run contract:check`
-- [ ] Production-build E2E: Chromium full, Firefox smoke, WebKit smoke, and axe
+- [ ] Production-build E2E: Chromium full, Firefox smoke, WebKit smoke, mobile viewport smoke, and axe
 - [ ] `npm run test:firebase-integration`
 - [ ] `python scripts/production_smoke.py`
 - [ ] Frontend `notevault` deployment is Ready with the expected root/build/output settings
@@ -62,8 +62,9 @@ Firestore Emulator verifies real SDK serialization and query behavior but does n
 ## Cursor changes
 
 - Cursor version changes require tamper, UID, mode, filter, ordering, and mutation tests.
-- Version 2 page cursors sign `createdAt` and document ID and continue by field values, never by rereading a boundary snapshot.
-- Cursor pagination provides stable continuation keys, not a frozen database snapshot.
+- Version 2 timeline cursors sign `createdAt` and document ID and continue by field values, never by rereading a boundary snapshot.
+- Timeline cursor pagination provides stable continuation keys across edits and boundary deletion, not a frozen database snapshot.
+- Filtered search scans a bounded recent-note set and continues by signed offset. Concurrent matching additions or removals can shift later filtered pages, so filtered search does not claim snapshot consistency.
 - Short-lived old cursor versions may be invalidated. Reloading the first page is the supported client recovery.
 - Key rotation invalidates existing cursors and must be called out in release notes.
 
@@ -82,7 +83,7 @@ Read and write budgets are separate and keyed by verified UID. The limiter is in
 
 ## Browser maintenance
 
-Chromium runs the full suite. Firefox and WebKit run the same core smoke. The current Windows administrator-session Firefox runtime can fail before page creation with Playwright's known `browserContext.newPage` issue; Ubuntu CI is the release authority for Firefox until that upstream/environment limitation is resolved. This exception must never be converted into a skipped CI project.
+Chromium runs the full suite. Firefox and WebKit run the same core smoke, including the maintained mobile viewport check. The current Windows administrator-session Firefox runtime can fail before page creation with Playwright's known `browserContext.newPage` issue; Ubuntu CI is the release authority for Firefox until that upstream/environment limitation is resolved. This exception must never be converted into a skipped CI project.
 
 ## Production acceptance
 
