@@ -27,7 +27,7 @@
     "check": "npm run typecheck && npm test && npm run test:coverage && npm run build"
   },
   "dependencies": {
-    "firebase": "^11.0.0",
+    "firebase": "^12.16.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
