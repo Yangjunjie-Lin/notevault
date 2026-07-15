@@ -142,11 +142,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify release metadata consistency
+        run: npm run release:check
       - name: Validate license, docs, and secret exclusions
         shell: bash
         run: |
           test -f LICENSE
           test -f docs/maintenance.md
+          test -f docs/release-notes-v1.1.0.md
           test -f .github/dependabot.yml
           test -f .github/ISSUE_TEMPLATE/bug_report.yml
           test -f .github/ISSUE_TEMPLATE/browser_issue.yml
