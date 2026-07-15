@@ -2,7 +2,7 @@
   "name": "notevault",
   "private": true,
   "version": "1.1.0",
-  "description": "Full-stack note-taking application built with React, FastAPI, Firebase Authentication, and Firestore.",
+  "description": "Production-oriented Markdown notebook with Firebase Auth, FastAPI, Firestore, typed OpenAPI contracts, and cross-browser E2E tests.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -38,7 +38,8 @@
     "test": "npm run test:frontend && npm run test:backend",
     "contract:generate": "python backend/scripts/export_openapi.py && npm --prefix frontend run contract:generate",
     "contract:check": "npm run contract:generate && git diff --exit-code -- backend/openapi.json frontend/src/features/notes/generated.ts",
-    "check": "npm run typecheck:frontend && npm run test:frontend && npm run test:coverage && npm run test:backend:coverage && npm run contract:check && npm run build:frontend",
+    "release:check": "node scripts/verify-release.mjs",
+    "check": "npm run release:check && npm run typecheck:frontend && npm run test:frontend && npm run test:coverage && npm run test:backend:coverage && npm run contract:check && npm run build:frontend",
     "verify": "npm run check && npm run test:e2e && npm run test:firebase-integration"
   },
   "devDependencies": {
