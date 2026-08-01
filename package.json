@@ -43,6 +43,6 @@
     "verify": "npm run check && npm run test:e2e && npm run test:firebase-integration"
   },
   "devDependencies": {
-    "firebase-tools": "^15.23.0"
+    "firebase-tools": "^15.24.0"
   }
 }
