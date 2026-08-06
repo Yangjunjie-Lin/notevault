@@ -56,6 +56,8 @@ async function expectNoAxeViolations(page: Page, state: string) {
   expect(results.violations, `${state}: ${JSON.stringify(results.violations, null, 2)}`).toEqual([])
 }
 
+test.use({ reducedMotion: 'reduce' })
+
 test.beforeEach(async ({ request, page }) => {
   await resetDatabase(request)
   await mockAi(page)
