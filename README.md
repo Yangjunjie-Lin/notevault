@@ -65,7 +65,7 @@ The only provider call is `NoteVault backend → SiliconFlow`. The browser never
 
 ## Local development
 
-Prerequisites: Node.js 20.19–22, npm 10+, Python 3.12–3.13, Java 21+ for the Firestore Emulator, and a Firebase project with Google Authentication and Firestore enabled.
+Prerequisites: Node.js 22.22.2, npm 10+, Python 3.12–3.13, Java 21+ for the Firestore Emulator, and a Firebase project with Google Authentication and Firestore enabled.
 
 ```bash
 git clone https://github.com/Yangjunjie-Lin/notevault.git
