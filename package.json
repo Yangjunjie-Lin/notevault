@@ -1,8 +1,8 @@
 {
   "name": "notevault",
   "private": true,
-  "version": "1.1.0",
-  "description": "Production-oriented Markdown notebook with Firebase Auth, FastAPI, Firestore, typed OpenAPI contracts, and cross-browser E2E tests.",
+  "version": "1.2.0",
+  "description": "Production-oriented AI-assisted Markdown notebook with Firebase Auth, FastAPI, Firestore, typed OpenAPI contracts, and cross-browser E2E tests.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -16,7 +16,9 @@
     "fastapi",
     "firebase",
     "firestore",
-    "notes"
+    "notes",
+    "markdown",
+    "ai-assistant"
   ],
   "scripts": {
     "dev:frontend": "npm --prefix frontend run dev",
@@ -30,7 +32,7 @@
     "test:e2e:chromium": "npm --prefix frontend run test:e2e:chromium",
     "test:e2e:firefox": "npm --prefix frontend run test:e2e:firefox",
     "test:e2e:webkit": "npm --prefix frontend run test:e2e:webkit",
-    "test:firebase-integration": "firebase emulators:exec --only firestore --project notevault-test \"python -m pytest -m integration backend/tests/integration\"",
+    "test:firebase-integration": "node scripts/test-firebase-integration.mjs",
     "typecheck:frontend": "npm --prefix frontend run typecheck",
     "test:backend": "python -m pytest backend/tests",
     "test:backend:coverage": "python -m pytest --cov=backend/app --cov-report=term-missing --cov-fail-under=85 backend/tests",

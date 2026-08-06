@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
-const backendUrl = 'http://127.0.0.1:8000'
+import { backendOrigin as backendUrl } from './ports'
 
 async function resetDatabase(request: APIRequestContext) {
   const response = await request.post(`${backendUrl}/__test__/reset`)
@@ -21,6 +21,34 @@ async function signIn(page: Page) {
   await expect(page.getByRole('main', { name: 'Notes workspace' })).toBeVisible()
 }
 
+async function mockAi(page: Page) {
+  await page.route('**/ai/format-markdown', async (route) => {
+    const payload = route.request().postDataJSON() as { text: string }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        text: payload.text,
+        changed: false,
+        model: 'deepseek-ai/DeepSeek-V4-Flash',
+        traceId: 'e2e-format',
+      }),
+    })
+  })
+  await page.route('**/ai/revise-note', async (route) => {
+    const payload = route.request().postDataJSON() as { text: string; instruction: string }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        text: `${payload.text}\n\n> Revised for: ${payload.instruction}`,
+        model: 'deepseek-ai/DeepSeek-V4-Flash',
+        traceId: 'e2e-revise',
+      }),
+    })
+  })
+}
+
 async function expectNoAxeViolations(page: Page, state: string) {
   // Analyze the settled UI, after the longest 250ms dialog transition completes.
   await page.waitForTimeout(300)
@@ -28,8 +56,9 @@ async function expectNoAxeViolations(page: Page, state: string) {
   expect(results.violations, `${state}: ${JSON.stringify(results.violations, null, 2)}`).toEqual([])
 }
 
-test.beforeEach(async ({ request }) => {
+test.beforeEach(async ({ request, page }) => {
   await resetDatabase(request)
+  await mockAi(page)
 })
 
 test('core create, edit, delete, pagination, dialog, and sign-out flow @smoke', async ({ page, request }) => {
@@ -196,6 +225,72 @@ test('renders concrete 500 and Firestore 503 recovery states', async ({ page }) 
   await expect(page.getByRole('alert')).toContainText('Notes are temporarily unavailable')
 })
 
+test('AI formatting review, AI Assist revision, and failure fallback preserve the draft @smoke', async ({ page }) => {
+  await signIn(page)
+  await page.unroute('**/ai/format-markdown')
+  let formattedRequest = 0
+  await page.route('**/ai/format-markdown', async (route) => {
+    const payload = route.request().postDataJSON() as { text: string }
+    formattedRequest += 1
+    const formatted = formattedRequest === 1
+      ? '# Meeting note\n\n- agenda'
+      : '# Revised meeting note\n\n- [ ] agenda'
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        text: formatted,
+        changed: formatted !== payload.text,
+        model: 'deepseek-ai/DeepSeek-V4-Flash',
+        traceId: `format-${formattedRequest}`,
+      }),
+    })
+  })
+
+  const body = page.getByLabel('Note body (Markdown)')
+  await body.fill('#Meeting note\n-agenda')
+  await page.getByPlaceholder(/comma-separated/i).fill('Meetings')
+  const addButton = page.getByRole('button', { name: 'Add note' })
+  await addButton.click()
+  const review = page.getByRole('dialog', { name: 'Review AI formatting' })
+  await expect(review.getByLabel('Original Markdown')).toContainText('#Meeting note')
+  await expect(review.getByLabel('Formatted Markdown')).toContainText('# Meeting note')
+  await expectNoAxeViolations(page, 'AI formatting review')
+  await review.getByRole('button', { name: 'Apply & Save' }).click()
+  await expect(page.getByRole('heading', { name: 'Meeting note' })).toBeVisible()
+
+  const card = page.locator('.nv-card').filter({ hasText: 'Meeting note' })
+  await card.getByRole('button', { name: /edit note from/i }).click()
+  await page.getByRole('button', { name: 'AI Assist' }).click()
+  await page.getByLabel('Editing instruction').fill('Convert this to a checklist.')
+  await page.getByRole('button', { name: 'Generate revision' }).click()
+  await expect(page.getByText(/Revised for: Convert this to a checklist/)).toBeVisible()
+  await expectNoAxeViolations(page, 'AI Assist candidate')
+  await expect(body).toHaveValue('# Meeting note\n\n- agenda')
+  await page.getByRole('button', { name: 'Apply to draft' }).click()
+  await expect(body).toHaveValue(/Revised for: Convert this to a checklist\./)
+  await body.fill('#Revised meeting note\n- [ ] agenda')
+  await page.getByRole('button', { name: 'Save changes' }).click()
+  await page.getByRole('dialog', { name: 'Review AI formatting' })
+    .getByRole('button', { name: 'Apply & Save' }).click()
+  await expect(page.getByRole('heading', { name: 'Revised meeting note' })).toBeVisible()
+
+  await page.unroute('**/ai/format-markdown')
+  await page.route('**/ai/format-markdown', (route) => route.fulfill({
+    status: 503,
+    contentType: 'application/json',
+    body: JSON.stringify({ detail: 'AI service is temporarily unavailable' }),
+  }))
+  await body.fill('Original failure-safe note')
+  await page.getByRole('button', { name: 'Add note' }).click()
+  const failure = page.getByRole('dialog', { name: 'AI formatting unavailable' })
+  await expect(failure.getByRole('alert')).toContainText('temporarily unavailable')
+  await expect(body).toHaveValue('Original failure-safe note')
+  await expectNoAxeViolations(page, 'AI formatting failure')
+  await failure.getByRole('button', { name: 'Save Original' }).click()
+  await expect(page.getByText('Original failure-safe note', { exact: true })).toBeVisible()
+})
+
 test('axe: signed-out, empty, list, edit, preview, and dialogs', async ({ page, request }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: /beautifully private/i })).toBeVisible()
@@ -215,6 +310,9 @@ test('axe: signed-out, empty, list, edit, preview, and dialogs', async ({ page, 
   await page.getByRole('button', { name: /edit note from/i }).click()
   await expectNoAxeViolations(page, 'edit mode')
   await page.getByLabel('Note body (Markdown)').fill('# Accessible preview')
+  await page.getByRole('button', { name: 'AI Assist' }).click()
+  await expectNoAxeViolations(page, 'AI Assist panel')
+  await page.getByRole('button', { name: 'Close AI Assist' }).click()
   await page.getByRole('tab', { name: 'Preview' }).click()
   await expectNoAxeViolations(page, 'Markdown preview')
 
@@ -236,5 +334,29 @@ test('axe: API error and mobile viewport @smoke', async ({ page }) => {
   await signIn(page)
   await expect(page.getByRole('alert')).toBeVisible()
   await expectNoAxeViolations(page, 'mobile API error state')
+  const body = page.getByLabel('Note body (Markdown)')
+  await body.fill('#Mobile AI draft')
+  await page.getByRole('button', { name: 'AI Assist' }).click()
+  await page.getByLabel('Editing instruction').fill('Make this clearer.')
+  await page.getByRole('button', { name: 'Generate revision' }).click()
+  await expect(page.getByRole('button', { name: 'Apply to draft' })).toBeVisible()
+  await expectNoAxeViolations(page, 'mobile AI candidate')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await page.getByRole('button', { name: 'Close AI Assist' }).click()
+
+  await page.unroute('**/ai/format-markdown')
+  await page.route('**/ai/format-markdown', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      text: '# Mobile AI draft',
+      changed: true,
+      model: 'deepseek-ai/DeepSeek-V4-Flash',
+      traceId: 'mobile-review',
+    }),
+  }))
+  await page.getByRole('button', { name: 'Add note' }).click()
+  await expect(page.getByRole('dialog', { name: 'Review AI formatting' })).toBeVisible()
+  await expectNoAxeViolations(page, 'mobile AI formatting review')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })

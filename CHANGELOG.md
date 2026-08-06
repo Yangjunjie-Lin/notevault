@@ -1,5 +1,44 @@
 # Changelog
 
+## 1.2.0 — 2026-08-06 — AI Markdown Assistant
+
+### Added
+
+- Added authenticated `POST /ai/format-markdown` and `POST /ai/revise-note` endpoints backed by DeepSeek V4 Flash through SiliconFlow's non-streaming Chat Completions API.
+- Added automatic Markdown normalization before note creation and update, including a review step with **Apply & Save**, **Save Original**, and **Cancel** choices.
+- Added an in-composer AI Assist workflow with iterative revision candidates, preview/source inspection, retry, discard, close, and explicit apply-to-draft behavior.
+- Added dedicated AI request limiting per verified Firebase UID, bounded input contracts, provider-output validation, sanitized error mapping, timeout handling, and limited transient retries.
+- Added mocked backend, frontend, accessibility, stale-request, failure-recovery, and browser workflow coverage without using a live provider key in CI.
+- Added AI integration, privacy, deployment, maintenance, security, and v1.2.0 release documentation.
+
+### Changed
+
+- Changed project status from feature-complete maintenance mode to active, production-oriented AI-assisted Markdown development.
+- Extended the generated FastAPI/OpenAPI/TypeScript contract with AI request and response schemas while keeping FastAPI as the source of truth.
+- Preserved tags outside the AI boundary and kept AI Assist candidates in temporary frontend session state until explicitly applied.
+- Updated package, backend, OpenAPI, environment-template, README badge, changelog, lockfile, and release-note metadata to v1.2.0.
+
+### Security and privacy
+
+- Kept `SILICONFLOW_API_KEY` exclusively in backend configuration; the frontend never calls SiliconFlow or uses a `VITE_*` provider secret.
+- Documented that AI use sends the current draft, and for AI Assist the editing instruction, from NoteVault's backend to SiliconFlow for processing.
+- Treats note content as untrusted data in backend-owned prompts, rejects empty or oversized output, retains safe Markdown rendering, and never logs note bodies, editing instructions, authorization headers, or full provider responses.
+- Preserves the original draft on AI failure and requires review or explicit apply actions before AI text can be saved.
+- Rejects non-complete provider finish reasons, blocks remote Markdown image loading, sanitizes validation echoes, and declares Firebase bearer/error contracts in OpenAPI.
+
+### Dependencies
+
+- Added the pinned `httpx==0.27.2` backend runtime dependency for timeout-aware asynchronous HTTPS calls and bounded retries. No provider SDK, agent framework, browser SDK, global state framework, editor, or diff dependency was introduced.
+- Kept npm lockfiles synchronized and expanded release/hygiene checks for version metadata, AI configuration placeholders, and frontend secret exclusions.
+
+### Known limitations
+
+- AI rate limiting is in-memory per warm Vercel instance, not globally distributed.
+- When SiliconFlow is unavailable, AI Assist is unavailable and save formatting falls back only through an explicit user choice to save the original draft.
+- AI Assist sessions are temporary browser state and are not persisted to Firestore.
+- Provider responses are non-streaming; this release has no RAG, embeddings, vector database, or general knowledge chat.
+- The latest Firebase CLI retains five moderate development-only transitive audit advisories; root production dependencies and all frontend dependencies audit cleanly after the non-breaking lock refresh. No forced CLI downgrade or untested major override is included.
+
 ## 1.1.0 — 2026-07-15 — stable maintenance release
 
 ### Fixed

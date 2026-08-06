@@ -11,6 +11,7 @@
   6. Form controls (inputs, textareas)
   7. Auth landing page
   8. NoteComposer (editor, tabs, tags, preview)
+  8a. AI editing and formatting
   9. NotesToolbar (search + filter bar)
   10. Note list & NoteCard
   11. Markdown rendering
@@ -613,6 +614,13 @@ img { max-width: 100%; display: block; }
 }
 
 /* Editor tabs */
+.nv-editor-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .nv-tabs {
   display: flex;
   gap: 2px;
@@ -648,6 +656,16 @@ img { max-width: 100%; display: block; }
   gap: 6px;
   font-size: 0.7375rem;
   color: var(--nv-text-muted);
+}
+
+.nv-md-image-blocked {
+  display: inline-block;
+  padding: 2px 6px;
+  border: 1px solid var(--nv-border);
+  border-radius: var(--nv-r-sm);
+  background: var(--nv-surface-subtle);
+  color: var(--nv-text-muted);
+  font-size: 0.75rem;
 }
 
 /* Tag input section */
@@ -701,6 +719,203 @@ img { max-width: 100%; display: block; }
 }
 
 .nv-composer-submit { flex: 1; min-height: 42px; }
+
+/* AI editing and formatting */
+.nv-ai-toggle {
+  color: var(--nv-primary);
+  flex-shrink: 0;
+}
+
+.nv-ai-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--nv-primary-border);
+  border-radius: var(--nv-r-lg);
+  background: var(--nv-primary-bg);
+}
+
+.nv-ai-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nv-ai-panel-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: var(--nv-primary-hover);
+  font-size: 0.9375rem;
+}
+
+.nv-ai-intro {
+  margin: 0;
+  color: var(--nv-text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.nv-ai-disclosure {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  color: var(--nv-text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.45;
+}
+
+.nv-ai-disclosure svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.nv-ai-instruction {
+  min-height: 84px;
+  padding: 9px 10px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.nv-ai-generate { width: 100%; }
+
+.nv-ai-announcement {
+  min-height: 1.2em;
+  color: var(--nv-primary-hover);
+  font-size: 0.75rem;
+}
+
+.nv-ai-inline-error,
+.nv-ai-format-error {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--nv-danger-border);
+  border-radius: var(--nv-r-md);
+  background: var(--nv-danger-bg);
+  color: var(--nv-danger-hover);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.nv-ai-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 140px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.nv-ai-history li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--nv-primary-border);
+  border-radius: var(--nv-r-md);
+  background: var(--nv-surface);
+  color: var(--nv-text-secondary);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.nv-ai-history-label {
+  grid-column: 1 / -1;
+  color: var(--nv-text-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nv-ai-ready {
+  align-self: start;
+  color: var(--nv-primary);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.nv-ai-result {
+  min-width: 0;
+  border: 1px solid var(--nv-primary-border);
+  border-radius: var(--nv-r-md);
+  background: var(--nv-surface);
+  overflow: hidden;
+}
+
+.nv-ai-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--nv-border);
+}
+
+.nv-ai-result-head h3 {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--nv-text-secondary);
+}
+
+.nv-ai-view-tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.nv-ai-view-tab {
+  min-height: 36px;
+  padding: 5px 8px;
+  border-radius: var(--nv-r-sm);
+  color: var(--nv-text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.nv-ai-view-tab:hover,
+.nv-ai-view-tab--active {
+  background: var(--nv-primary-bg);
+  color: var(--nv-primary-hover);
+}
+
+.nv-ai-result-body,
+.nv-ai-result-source {
+  width: 100%;
+  max-height: 260px;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+}
+
+.nv-ai-result-source {
+  background: var(--nv-surface-subtle);
+  color: var(--nv-text-primary);
+  font-family: var(--nv-font-mono);
+  font-size: 0.75rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.nv-ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.nv-ai-actions .btn {
+  flex: 1 1 auto;
+  padding-inline: 10px;
+}
 
 /* Markdown preview */
 .nv-preview {
@@ -1186,6 +1401,12 @@ img { max-width: 100%; display: block; }
   animation: nv-slide-up var(--nv-dur-slow) var(--nv-ease);
 }
 
+.nv-dialog--wide {
+  max-width: 900px;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+}
+
 @keyframes nv-slide-up {
   from { opacity: 0; transform: translateY(10px) scale(0.97); }
   to   { opacity: 1; transform: none; }
@@ -1202,6 +1423,11 @@ img { max-width: 100%; display: block; }
   margin-bottom: 16px;
 }
 
+.nv-dialog-icon--ai {
+  background: var(--nv-primary-bg);
+  color: var(--nv-primary);
+}
+
 .nv-dialog-title {
   margin: 0 0 8px;
   font-size: 1rem;
@@ -1214,6 +1440,44 @@ img { max-width: 100%; display: block; }
   font-size: 0.875rem;
   color: var(--nv-text-secondary);
   line-height: 1.55;
+}
+
+.nv-dialog-desc > p { margin: 0; }
+
+.nv-dialog-desc .nv-ai-disclosure { margin-bottom: 16px; }
+
+.nv-ai-format-review {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.nv-ai-format-review section { min-width: 0; }
+
+.nv-ai-format-review h3 {
+  margin: 0 0 6px;
+  color: var(--nv-text-secondary);
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.nv-ai-format-review pre {
+  width: 100%;
+  min-height: 180px;
+  max-height: 45dvh;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--nv-border);
+  border-radius: var(--nv-r-md);
+  background: var(--nv-surface-subtle);
+  color: var(--nv-text-primary);
+  font-family: var(--nv-font-mono);
+  font-size: 0.75rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow: auto;
+  overflow-wrap: anywhere;
 }
 
 .nv-dialog-actions {
@@ -1268,6 +1532,16 @@ img { max-width: 100%; display: block; }
   .nv-card-actions { justify-content: flex-end; }
   .nv-composer-actions { flex-direction: column-reverse; }
   .nv-composer-actions .btn { width: 100%; min-height: 44px; }
+  .nv-editor-bar { align-items: stretch; flex-direction: column; }
+  .nv-tabs { width: 100%; }
+  .nv-tab { flex: 1; justify-content: center; }
+  .nv-ai-toggle { width: 100%; }
+  .nv-ai-panel { padding: 12px; }
+  .nv-ai-panel-head { align-items: flex-start; }
+  .nv-ai-actions { flex-direction: column-reverse; }
+  .nv-ai-actions .btn { width: 100%; min-height: 44px; }
+  .nv-ai-format-review { grid-template-columns: 1fr; }
+  .nv-ai-format-review pre { min-height: 130px; max-height: 28dvh; }
 }
 
 /* =========================================================

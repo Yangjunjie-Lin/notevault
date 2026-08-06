@@ -42,9 +42,11 @@ jobs:
       - name: Reject production auth bypass
         working-directory: frontend
         run: npm run test:production-auth-gate
-      - name: Audit production dependencies
+      - name: Audit frontend dependencies
         working-directory: frontend
-        run: npm audit --omit=dev
+        run: |
+          npm audit
+          npm audit --omit=dev
 
   backend:
     name: Backend
@@ -152,7 +154,10 @@ jobs:
         run: |
           test -f LICENSE
           test -f docs/maintenance.md
-          test -f docs/release-notes-v1.1.0.md
+          version=$(node -p "require('./package.json').version")
+          test -f "docs/release-notes-v${version}.md"
+          test -f docs/ai-integration.md
+          test -f docs/ai-privacy.md
           test -f .github/dependabot.yml
           test -f .github/ISSUE_TEMPLATE/bug_report.yml
           test -f .github/ISSUE_TEMPLATE/browser_issue.yml
@@ -161,6 +166,9 @@ jobs:
           grep -q "\.vercel/" .gitignore || grep -q "^\.vercel$" .gitignore
           grep -q "serviceAccountKey.json" .gitignore
           grep -q "git clone https://github.com/Yangjunjie-Lin/notevault.git" README.md
+          grep -q "SILICONFLOW_API_KEY=YOUR_SILICONFLOW_API_KEY_HERE" .env.example
+          ! git grep -I -E -- 'VITE_[A-Z0-9_]*SILICONFLOW|sk-[[:alnum:]_-]{24,}'
+          ! git grep -I -E -- 'api\.siliconflow\.cn/v1/chat/completions' -- frontend
           ! git ls-files | grep -E '(^|/)\.env($|\.(local|production|development|test)$)|serviceAccountKey\.json|(^|/)\.vercel/'
           ! git ls-files | grep -E '(^|/)(\.venv|venv)/'
           ! git ls-files | grep -E '(^|/)(playwright-report|test-results|coverage)(/|$)|(^|/)\.coverage$'

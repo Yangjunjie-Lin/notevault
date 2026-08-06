@@ -1,18 +1,31 @@
-from typing import Optional
+from typing import Annotated
 
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from .firebase import verify_firebase_token
 
 
-def get_current_uid(authorization: Optional[str] = Header(default=None)) -> str:
-    if not authorization or not authorization.lower().startswith("bearer "):
+firebase_bearer = HTTPBearer(
+    auto_error=False,
+    scheme_name="FirebaseBearer",
+    description="Firebase ID token issued to the signed-in NoteVault user.",
+)
+
+
+def get_current_uid(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(firebase_bearer),
+    ],
+) -> str:
+    if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing bearer token",
         )
 
-    token = authorization.split(" ", 1)[1].strip()
+    token = credentials.credentials.strip()
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -51,4 +64,3 @@ def get_current_uid(authorization: Optional[str] = Header(default=None)) -> str:
         )
 
     return uid
-

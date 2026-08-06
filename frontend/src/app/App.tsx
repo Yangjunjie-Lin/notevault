@@ -39,6 +39,7 @@ export default function App() {
   const [editingNote, setEditingNote] = useState<Note | null>(null)
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [composerBlocking, setComposerBlocking] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [pendingDiscard, setPendingDiscard] = useState<PendingDiscard | null>(null)
@@ -100,6 +101,7 @@ export default function App() {
   }
 
   function requestSignOut(trigger: HTMLButtonElement) {
+    if (composerBlocking) return
     if (dirty) {
       discardTrigger.current = trigger
       setPendingDiscard({ kind: 'signout' })
@@ -108,6 +110,7 @@ export default function App() {
   }
 
   function requestEdit(note: Note, trigger: HTMLButtonElement) {
+    if (composerBlocking) return
     if (editingNote?.id === note.id) return
     if (dirty) {
       discardTrigger.current = trigger
@@ -128,6 +131,7 @@ export default function App() {
   }
 
   function requestDelete(id: string, trigger: HTMLButtonElement) {
+    if (composerBlocking) return
     deleteTrigger.current = trigger
     setConfirmId(id)
   }
@@ -194,6 +198,7 @@ export default function App() {
         user={user}
         authReady={authReady && !authInitializing}
         authBusy={authBusy}
+        workspaceBlocking={composerBlocking}
         onSignIn={handleSignIn}
         onSignOut={requestSignOut}
       />
@@ -218,6 +223,7 @@ export default function App() {
             onSubmit={submitNote}
             onCancelEditing={requestCancelEditing}
             onDirtyChange={handleDirtyChange}
+            onBlockingChange={setComposerBlocking}
             loading={saving}
           />
 
@@ -252,6 +258,7 @@ export default function App() {
                       onEdit={requestEdit}
                       onDelete={requestDelete}
                       onTagSelect={(tag) => setFilters({ q: '', tag })}
+                      actionsDisabled={composerBlocking}
                     />
                   ))}
                 </ul>

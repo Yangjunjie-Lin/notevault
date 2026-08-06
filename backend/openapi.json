@@ -1,6 +1,118 @@
 {
   "components": {
     "schemas": {
+      "AiFormatResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "changed": {
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "model": {
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "traceId": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Traceid"
+          }
+        },
+        "required": [
+          "text",
+          "changed",
+          "model"
+        ],
+        "title": "AiFormatResponse",
+        "type": "object"
+      },
+      "AiRevisionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "instruction": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Instruction",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "instruction"
+        ],
+        "title": "AiRevisionRequest",
+        "type": "object"
+      },
+      "AiRevisionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "model": {
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "traceId": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Traceid"
+          }
+        },
+        "required": [
+          "text",
+          "model"
+        ],
+        "title": "AiRevisionResponse",
+        "type": "object"
+      },
+      "AiTextRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "AiTextRequest",
+        "type": "object"
+      },
       "CreateNoteResponse": {
         "properties": {
           "note": {
@@ -24,6 +136,20 @@
           "ok"
         ],
         "title": "DeleteNoteResponse",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -210,11 +336,18 @@
         "title": "ValidationError",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "FirebaseBearer": {
+        "description": "Firebase ID token issued to the signed-in NoteVault user.",
+        "scheme": "bearer",
+        "type": "http"
+      }
     }
   },
   "info": {
     "title": "NoteVault API",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -234,6 +367,216 @@
         "summary": "Health Check",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/ai/format-markdown": {
+      "post": {
+        "operationId": "format_markdown_ai_format_markdown_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiTextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiFormatResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Firebase authentication is missing or invalid."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The local or provider AI request budget was exceeded.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before another AI request should be attempted.",
+                "schema": {
+                  "minimum": 1.0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The AI provider rejected the request or returned invalid output."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The AI integration is not configured or is temporarily unavailable."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The complete AI operation exceeded its timeout budget."
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Format Markdown",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/ai/revise-note": {
+      "post": {
+        "operationId": "revise_note_ai_revise_note_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiRevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiRevisionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Firebase authentication is missing or invalid."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The local or provider AI request budget was exceeded.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds before another AI request should be attempted.",
+                "schema": {
+                  "minimum": 1.0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The AI provider rejected the request or returned invalid output."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The AI integration is not configured or is temporarily unavailable."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The complete AI operation exceeded its timeout budget."
+          }
+        },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
+        "summary": "Revise Note",
+        "tags": [
+          "ai"
         ]
       }
     },
@@ -322,22 +665,6 @@
               ],
               "title": "Tag"
             }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -362,6 +689,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
         "summary": "List Notes",
         "tags": [
           "notes"
@@ -369,24 +701,6 @@
       },
       "post": {
         "operationId": "create_note_notes_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -419,6 +733,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
         "summary": "Create Note",
         "tags": [
           "notes"
@@ -436,22 +755,6 @@
             "schema": {
               "title": "Note Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           }
         ],
@@ -477,6 +780,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
         "summary": "Delete Note",
         "tags": [
           "notes"
@@ -492,22 +800,6 @@
             "schema": {
               "title": "Note Id",
               "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           }
         ],
@@ -543,6 +835,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "FirebaseBearer": []
+          }
+        ],
         "summary": "Update Note",
         "tags": [
           "notes"

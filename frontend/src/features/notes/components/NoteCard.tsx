@@ -25,6 +25,7 @@ type Props = {
   onEdit: (note: Note, trigger: HTMLButtonElement) => void
   onDelete: (id: string, trigger: HTMLButtonElement) => void
   onTagSelect: (tag: string) => void
+  actionsDisabled?: boolean
 }
 
 function formatTime(ts: number): string {
@@ -47,7 +48,13 @@ function formatTime(ts: number): string {
  *
  * Deletion is handled by the parent — this component only signals intent.
  */
-export default function NoteCard({ note, onEdit, onDelete, onTagSelect }: Props) {
+export default function NoteCard({
+  note,
+  onEdit,
+  onDelete,
+  onTagSelect,
+  actionsDisabled = false,
+}: Props) {
   const isoDate = note.createdAt ? new Date(note.createdAt).toISOString() : ''
   const updatedIsoDate = note.updatedAt ? new Date(note.updatedAt).toISOString() : ''
 
@@ -95,6 +102,7 @@ export default function NoteCard({ note, onEdit, onDelete, onTagSelect }: Props)
             type="button"
             className="btn btn-ghost btn-sm"
             onClick={(event) => onEdit(note, event.currentTarget)}
+            disabled={actionsDisabled}
             aria-label={`Edit note from ${formatTime(note.createdAt)}`}
           >
             <EditIcon /> Edit
@@ -103,6 +111,7 @@ export default function NoteCard({ note, onEdit, onDelete, onTagSelect }: Props)
             type="button"
             className="btn-danger"
             onClick={(event) => onDelete(note.id, event.currentTarget)}
+            disabled={actionsDisabled}
             aria-label={`Delete note from ${formatTime(note.createdAt)}`}
           >
             <TrashIcon /> Delete

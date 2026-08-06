@@ -4,6 +4,14 @@ import { fileURLToPath } from 'node:url'
 import type { FullConfig } from '@playwright/test'
 import { build, preview, type PreviewServer } from 'vite'
 
+import {
+  backendOrigin,
+  backendPort,
+  buildOutputDirectory,
+  frontendOrigin,
+  frontendPort,
+} from './ports'
+
 const frontendRoot = fileURLToPath(new URL('../..', import.meta.url))
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url))
 
@@ -36,9 +44,13 @@ async function stopBackend(backend: ChildProcess) {
 
 export default async function globalSetup(_config: FullConfig) {
   process.env.VITE_TEST_AUTH = 'true'
-  process.env.VITE_API_BASE_URL = 'http://127.0.0.1:8000'
+  process.env.VITE_API_BASE_URL = backendOrigin
 
-  await build({ root: frontendRoot, mode: 'e2e' })
+  await build({
+    root: frontendRoot,
+    mode: 'e2e',
+    build: { outDir: buildOutputDirectory },
+  })
 
   const python = process.env.PYTHON || 'python'
   const backend = spawn(
@@ -52,14 +64,14 @@ export default async function globalSetup(_config: FullConfig) {
       '--host',
       '127.0.0.1',
       '--port',
-      '8000',
+      String(backendPort),
     ],
     {
       cwd: repositoryRoot,
       env: {
         ...process.env,
         ENVIRONMENT: 'test',
-        ALLOWED_ORIGINS: 'http://127.0.0.1:4173',
+        ALLOWED_ORIGINS: frontendOrigin,
       },
       stdio: 'inherit',
     },
@@ -67,13 +79,14 @@ export default async function globalSetup(_config: FullConfig) {
 
   let previewServer: PreviewServer | undefined
   try {
-    await waitForUrl('http://127.0.0.1:8000/health', backend)
+    await waitForUrl(`${backendOrigin}/health`, backend)
     previewServer = await preview({
       root: frontendRoot,
       mode: 'e2e',
-      preview: { host: '127.0.0.1', port: 4173, strictPort: true },
+      build: { outDir: buildOutputDirectory },
+      preview: { host: '127.0.0.1', port: frontendPort, strictPort: true },
     })
-    await waitForUrl('http://127.0.0.1:4173')
+    await waitForUrl(frontendOrigin)
   } catch (error) {
     previewServer?.httpServer.close()
     await stopBackend(backend)

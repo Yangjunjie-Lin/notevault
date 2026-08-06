@@ -18,7 +18,9 @@ function escapeRegExp(value) {
 }
 
 const rootPackage = JSON.parse(read("package.json"));
+const rootPackageLock = JSON.parse(read("package-lock.json"));
 const frontendPackage = JSON.parse(read("frontend/package.json"));
+const frontendPackageLock = JSON.parse(read("frontend/package-lock.json"));
 const version = rootPackage.version;
 
 if (!/^\d+\.\d+\.\d+$/.test(version)) {
@@ -29,6 +31,21 @@ if (frontendPackage.version !== version) {
   fail(`frontend/package.json is ${frontendPackage.version}, expected ${version}`);
 }
 
+for (const [label, lock] of [
+  ["package-lock.json", rootPackageLock],
+  ["frontend/package-lock.json", frontendPackageLock],
+]) {
+  if (lock.version !== version || lock.packages?.[""]?.version !== version) {
+    fail(`${label} root package metadata does not match ${version}`);
+  }
+}
+
+const backendProject = read("backend/pyproject.toml");
+const backendProjectVersion = backendProject.match(/^version\s*=\s*"([^"]+)"/m)?.[1];
+if (backendProjectVersion !== version) {
+  fail(`backend/pyproject.toml is ${backendProjectVersion ?? "missing"}, expected ${version}`);
+}
+
 const backendConfig = read("backend/app/config.py");
 const backendVersion = backendConfig.match(
   /self\.version\s*=\s*os\.getenv\("APP_VERSION",\s*"([^"]+)"\)/,
@@ -36,6 +53,36 @@ const backendVersion = backendConfig.match(
 
 if (backendVersion !== version) {
   fail(`backend default version is ${backendVersion ?? "missing"}, expected ${version}`);
+}
+
+const environmentExample = read(".env.example");
+const exampleVersion = environmentExample.match(/^APP_VERSION=([^\s#]+)$/m)?.[1];
+if (exampleVersion !== version) {
+  fail(`.env.example APP_VERSION is ${exampleVersion ?? "missing"}, expected ${version}`);
+}
+
+const requiredAiEnvironment = [
+  "SILICONFLOW_API_KEY=YOUR_SILICONFLOW_API_KEY_HERE",
+  "SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1",
+  "SILICONFLOW_MODEL=deepseek-ai/DeepSeek-V4-Flash",
+  "SILICONFLOW_TIMEOUT_SECONDS=45",
+  "SILICONFLOW_MAX_TOKENS=4096",
+  "SILICONFLOW_AI_RATE_LIMIT_PER_MINUTE=10",
+];
+for (const entry of requiredAiEnvironment) {
+  if (!environmentExample.split(/\r?\n/).includes(entry)) {
+    fail(`.env.example is missing ${entry.split("=")[0]}`);
+  }
+}
+if (/^VITE_[A-Z0-9_]*SILICONFLOW[A-Z0-9_]*=/m.test(environmentExample)) {
+  fail(".env.example exposes SiliconFlow configuration through VITE_*");
+}
+
+const runtimeRequirements = read("backend/requirements.txt");
+const requirementsHttpx = runtimeRequirements.match(/^httpx==([^\s#]+)$/m)?.[1];
+const projectHttpx = backendProject.match(/"httpx==([^"]+)"/)?.[1];
+if (!requirementsHttpx || requirementsHttpx !== projectHttpx) {
+  fail("httpx runtime pin must match in backend/requirements.txt and backend/pyproject.toml");
 }
 
 const openApi = JSON.parse(read("backend/openapi.json"));
@@ -57,6 +104,14 @@ if (!existsSync(path.join(repositoryRoot, releaseNotesPath))) {
 const releaseNotes = read(releaseNotesPath);
 if (!releaseNotes.startsWith(`# NoteVault v${version}`)) {
   fail(`${releaseNotesPath} does not start with the expected release title`);
+}
+
+const readme = read("README.md");
+if (!readme.includes(`shields.io/badge/version-${version}-blue`)) {
+  fail(`README.md version badge does not match ${version}`);
+}
+if (!readme.includes(`docs/release-notes-v${version}.md`)) {
+  fail(`README.md does not link ${releaseNotesPath}`);
 }
 
 console.log(`NoteVault v${version} release metadata is consistent.`);

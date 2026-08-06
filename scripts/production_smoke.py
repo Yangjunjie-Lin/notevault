@@ -1,6 +1,7 @@
 from html.parser import HTMLParser
 import json
 import os
+import re
 import sys
 from urllib.error import HTTPError
 from urllib.parse import urljoin, urlparse
@@ -14,6 +15,12 @@ FORBIDDEN_BUNDLE_VALUES = (
     "http://127.0.0.1:8000",
     "e2e@example.com",
     "not-a-jwt",
+    "SILICONFLOW_API_KEY",
+    "VITE_SILICONFLOW",
+    "api.siliconflow.cn/v1/chat/completions",
+)
+FORBIDDEN_BUNDLE_PATTERNS = (
+    re.compile(r"(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{24,}"),
 )
 
 
@@ -30,11 +37,19 @@ class AssetParser(HTMLParser):
             self.assets.append(values["href"] or "")
 
 
-def fetch(path: str, *, base: str, method: str = "GET", headers=None):
+def fetch(
+    path: str,
+    *,
+    base: str,
+    method: str = "GET",
+    headers=None,
+    body: bytes | None = None,
+):
     request = Request(
         urljoin(f"{base.rstrip('/')}/", path.lstrip('/')),
         method=method,
-        headers={"User-Agent": "NoteVault-production-smoke/1.1", **(headers or {})},
+        headers={"User-Agent": "NoteVault-production-smoke/1.2", **(headers or {})},
+        data=body,
     )
     try:
         with urlopen(request, timeout=30) as response:
@@ -66,6 +81,11 @@ def main() -> int:
         bundle_text += body.decode("utf-8", errors="replace")
     for forbidden in FORBIDDEN_BUNDLE_VALUES:
         require(forbidden not in bundle_text, f"production bundle contains {forbidden}")
+    for forbidden_pattern in FORBIDDEN_BUNDLE_PATTERNS:
+        require(
+            forbidden_pattern.search(bundle_text) is None,
+            "production bundle contains a provider-token-shaped value",
+        )
 
     health_status, _, health_body = fetch("/health", base=BACKEND_URL)
     require(health_status == 200, f"backend /health returned {health_status}")
@@ -83,6 +103,30 @@ def main() -> int:
     notes_status, _, _ = fetch("/notes", base=BACKEND_URL)
     require(notes_status == 401, f"anonymous backend /notes returned {notes_status}, expected 401")
 
+    json_headers = {"Content-Type": "application/json"}
+    format_status, _, _ = fetch(
+        "/ai/format-markdown",
+        base=BACKEND_URL,
+        method="POST",
+        headers=json_headers,
+        body=b'{"text":"smoke"}',
+    )
+    require(
+        format_status == 401,
+        f"anonymous backend /ai/format-markdown returned {format_status}, expected 401",
+    )
+    revise_status, _, _ = fetch(
+        "/ai/revise-note",
+        base=BACKEND_URL,
+        method="POST",
+        headers=json_headers,
+        body=b'{"text":"smoke","instruction":"format"}',
+    )
+    require(
+        revise_status == 401,
+        f"anonymous backend /ai/revise-note returned {revise_status}, expected 401",
+    )
+
     options_status, options_headers, _ = fetch(
         "/notes",
         base=BACKEND_URL,
@@ -99,7 +143,10 @@ def main() -> int:
         "backend CORS origin does not exactly match the frontend",
     )
 
-    print("Production anonymous smoke passed for frontend, backend, auth, assets, and CORS.")
+    print(
+        "Production anonymous smoke passed for frontend, backend, note/AI auth, "
+        "provider-secret exclusions, assets, and CORS."
+    )
     return 0
 
 

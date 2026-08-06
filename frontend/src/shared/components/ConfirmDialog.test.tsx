@@ -26,17 +26,24 @@ describe('ConfirmDialog', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('prevents cancellation while loading and traps forward/backward Tab', () => {
+  it('prevents cancellation while loading and traps forward/backward Tab', async () => {
     const onCancel = vi.fn()
-    render(<ConfirmDialog open loading onConfirm={vi.fn()} onCancel={onCancel} />)
+    const { rerender } = render(
+      <ConfirmDialog open loading onConfirm={vi.fn()} onCancel={onCancel} />,
+    )
+    const dialog = screen.getByRole('dialog')
+    const focusTarget = dialog.querySelector<HTMLElement>('.nv-dialog')
     const buttons = screen.getAllByRole('button')
     fireEvent.keyDown(document, { key: 'Escape' })
-    fireEvent.click(screen.getByRole('dialog'))
+    fireEvent.click(dialog)
     expect(onCancel).not.toHaveBeenCalled()
     expect(buttons[0]).toBeDisabled()
+    await waitFor(() => expect(focusTarget).toHaveFocus())
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(focusTarget).toHaveFocus()
 
     // Re-render enabled to exercise both ends of the focus trap.
-    render(<ConfirmDialog open loading={false} onConfirm={vi.fn()} onCancel={onCancel} />)
+    rerender(<ConfirmDialog open loading={false} onConfirm={vi.fn()} onCancel={onCancel} />)
     const enabled = screen.getAllByRole('button').filter((button) => !button.hasAttribute('disabled'))
     enabled[enabled.length - 1].focus()
     fireEvent.keyDown(document, { key: 'Tab' })
@@ -57,5 +64,38 @@ describe('ConfirmDialog', () => {
 
     await waitFor(() => expect(trigger).toHaveFocus())
     trigger.remove()
+  })
+
+  it('uses fallback focus when the original trigger becomes disabled', async () => {
+    const trigger = document.createElement('button')
+    const fallback = document.createElement('textarea')
+    document.body.append(trigger, fallback)
+    trigger.focus()
+    const { rerender } = render(
+      <ConfirmDialog
+        open
+        loading={false}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+        returnFocus={trigger}
+        fallbackFocus={fallback}
+      />,
+    )
+
+    trigger.disabled = true
+    rerender(
+      <ConfirmDialog
+        open={false}
+        loading={false}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+        returnFocus={trigger}
+        fallbackFocus={fallback}
+      />,
+    )
+
+    await waitFor(() => expect(fallback).toHaveFocus())
+    trigger.remove()
+    fallback.remove()
   })
 })

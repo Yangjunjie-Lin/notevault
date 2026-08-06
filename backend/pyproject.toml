@@ -1,6 +1,6 @@
 [project]
 name = "notevault-api"
-version = "1.1.0"
+version = "1.2.0"
 description = "FastAPI backend for NoteVault"
 requires-python = ">=3.12,<3.14"
 dependencies = [
@@ -8,6 +8,7 @@ dependencies = [
   "uvicorn[standard]==0.30.6",
   "firebase-admin==6.5.0",
   "python-dotenv==1.0.1",
+  "httpx==0.27.2",
 ]
 
 [tool.vercel]

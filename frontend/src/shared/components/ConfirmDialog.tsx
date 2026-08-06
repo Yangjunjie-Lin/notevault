@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useId, useRef, type ReactNode } from 'react'
 
 function AlertIcon() {
   return (
@@ -15,10 +15,19 @@ type Props = {
   onCancel: () => void
   title?: string
   description?: string
+  accessibleDescription?: string
   confirmLabel?: string
   loadingLabel?: string
   cancelLabel?: string
   returnFocus?: HTMLElement | null
+  fallbackFocus?: HTMLElement | null
+  children?: ReactNode
+  secondaryLabel?: string
+  onSecondary?: () => void
+  icon?: ReactNode
+  tone?: 'danger' | 'ai'
+  confirmVariant?: 'danger' | 'primary'
+  wide?: boolean
 }
 
 export default function ConfirmDialog({
@@ -28,14 +37,25 @@ export default function ConfirmDialog({
   onCancel,
   title = 'Delete this note?',
   description = 'This note will be permanently removed. There is no undo.',
+  accessibleDescription,
   confirmLabel = 'Delete note',
   loadingLabel = 'Deleting…',
   cancelLabel = 'Cancel',
   returnFocus = null,
+  fallbackFocus = null,
+  children,
+  secondaryLabel,
+  onSecondary,
+  icon,
+  tone = 'danger',
+  confirmVariant = 'danger',
+  wide = false,
 }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
   const previousFocus = useRef<HTMLElement | null>(null)
+  const titleId = useId()
+  const descriptionId = useId()
 
   useEffect(() => {
     if (open) {
@@ -46,10 +66,26 @@ export default function ConfirmDialog({
     const focusTarget = previousFocus.current
     previousFocus.current = null
     const id = setTimeout(() => {
-      if (focusTarget?.isConnected) focusTarget.focus()
+      if (focusTarget?.isConnected && !focusTarget.matches(':disabled')) {
+        focusTarget.focus()
+      } else if (fallbackFocus?.isConnected && !fallbackFocus.matches(':disabled')) {
+        fallbackFocus.focus()
+      }
     }, 0)
     return () => clearTimeout(id)
-  }, [open, returnFocus])
+  }, [fallbackFocus, open, returnFocus])
+
+  useEffect(() => {
+    if (!open || !loading) return undefined
+    const id = setTimeout(() => {
+      const dialog = dialogRef.current
+      const active = document.activeElement as HTMLElement | null
+      if (dialog && (!active || !dialog.contains(active) || active.matches(':disabled'))) {
+        dialog.focus()
+      }
+    }, 0)
+    return () => clearTimeout(id)
+  }, [loading, open])
 
   useEffect(() => {
     if (!open) return undefined
@@ -67,7 +103,19 @@ export default function ConfirmDialog({
       )
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
-      if (!event.shiftKey && document.activeElement === last) {
+      if (!first || !last) {
+        event.preventDefault()
+        dialogRef.current.focus()
+        return
+      }
+      if (
+        document.activeElement === dialogRef.current
+        || !dialogRef.current.contains(document.activeElement)
+      ) {
+        event.preventDefault()
+        const target = event.shiftKey ? last : first
+        target.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
         event.preventDefault()
         first?.focus()
       } else if (event.shiftKey && document.activeElement === first) {
@@ -90,19 +138,49 @@ export default function ConfirmDialog({
       className="nv-backdrop"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="confirm-dlg-title"
-      aria-describedby="confirm-dlg-desc"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      aria-busy={loading}
       onClick={(event) => { if (event.target === event.currentTarget && !loading) onCancel() }}
     >
-      <div className="nv-dialog" ref={dialogRef}>
-        <div className="nv-dialog-icon" aria-hidden="true"><AlertIcon /></div>
-        <h2 className="nv-dialog-title" id="confirm-dlg-title">{title}</h2>
-        <p className="nv-dialog-desc" id="confirm-dlg-desc">{description}</p>
+      <div
+        className={`nv-dialog${wide ? ' nv-dialog--wide' : ''}`}
+        ref={dialogRef}
+        tabIndex={-1}
+        aria-busy={loading}
+      >
+        <div className={`nv-dialog-icon${tone === 'ai' ? ' nv-dialog-icon--ai' : ''}`} aria-hidden="true">
+          {icon ?? <AlertIcon />}
+        </div>
+        <h2 className="nv-dialog-title" id={titleId}>{title}</h2>
+        {children ? (
+          <>
+            <p className="sr-only" id={descriptionId}>
+              {accessibleDescription ?? description}
+            </p>
+            <div className="nv-dialog-desc">{children}</div>
+          </>
+        ) : (
+          <p className="nv-dialog-desc" id={descriptionId}>
+            {accessibleDescription ?? description}
+          </p>
+        )}
         <div className="nv-dialog-actions">
-          <button ref={cancelRef} className="btn btn-ghost" onClick={onCancel} disabled={loading}>
+          <button type="button" ref={cancelRef} className="btn btn-ghost" onClick={onCancel} disabled={loading}>
             {cancelLabel}
           </button>
-          <button className="btn btn-danger-solid" onClick={onConfirm} disabled={loading} aria-busy={loading}>
+          {secondaryLabel && onSecondary && (
+            <button type="button" className="btn btn-secondary" onClick={onSecondary} disabled={loading}>
+              {secondaryLabel}
+            </button>
+          )}
+          <button
+            type="button"
+            className={`btn ${confirmVariant === 'primary' ? 'btn-primary' : 'btn-danger-solid'}`}
+            onClick={onConfirm}
+            disabled={loading}
+            aria-busy={loading}
+          >
             {loading ? loadingLabel : confirmLabel}
           </button>
         </div>

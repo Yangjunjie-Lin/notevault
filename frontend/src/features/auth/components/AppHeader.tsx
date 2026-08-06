@@ -22,6 +22,7 @@ type Props = {
   user: FirebaseUser | null
   authReady: boolean
   authBusy: boolean
+  workspaceBlocking?: boolean
   onSignIn: () => void
   onSignOut: (trigger: HTMLButtonElement) => void
 }
@@ -33,7 +34,14 @@ type Props = {
  * and a sign-in or sign-out button. The sign-in button is disabled when
  * Firebase is misconfigured (authReady = false).
  */
-export default function AppHeader({ user, authReady, authBusy, onSignIn, onSignOut }: Props) {
+export default function AppHeader({
+  user,
+  authReady,
+  authBusy,
+  workspaceBlocking = false,
+  onSignIn,
+  onSignOut,
+}: Props) {
   const initials = user
     ? (user.displayName || user.email || '?').slice(0, 2).toUpperCase()
     : ''
@@ -71,7 +79,7 @@ export default function AppHeader({ user, authReady, authBusy, onSignIn, onSignO
             <button
               className="btn btn-ghost btn-sm"
               onClick={(event) => onSignOut(event.currentTarget)}
-              disabled={authBusy}
+              disabled={authBusy || workspaceBlocking}
               aria-busy={authBusy}
               aria-label="Sign out"
             >

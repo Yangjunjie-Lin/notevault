@@ -1,6 +1,55 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+class ErrorResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    detail: str
+
+
+class AiTextRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(..., min_length=1, max_length=5000)
+
+    @field_validator("text")
+    @classmethod
+    def require_nonempty_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Text must not be blank")
+        return value
+
+
+class AiRevisionRequest(AiTextRequest):
+    instruction: str = Field(..., min_length=1, max_length=1000)
+
+    @field_validator("instruction")
+    @classmethod
+    def require_nonempty_instruction(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Instruction must not be blank")
+        return value
+
+
+class AiFormatResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    text: str = Field(..., min_length=1, max_length=5000)
+    changed: bool
+    model: str = Field(..., min_length=1)
+    trace_id: str | None = Field(default=None, alias="traceId", max_length=128)
+
+
+class AiRevisionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    text: str = Field(..., min_length=1, max_length=5000)
+    model: str = Field(..., min_length=1)
+    trace_id: str | None = Field(default=None, alias="traceId", max_length=128)
+
+
 class NoteWrite(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

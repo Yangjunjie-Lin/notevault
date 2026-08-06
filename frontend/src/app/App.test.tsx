@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { aiApi } from '../features/ai/api'
 import { logout, signInWithGoogle, subscribeToAuth } from '../features/auth/firebase'
 import { notesApi } from '../features/notes/api'
 import type { Note, NotesResponse } from '../features/notes/types'
@@ -20,6 +21,13 @@ vi.mock('../features/notes/api', () => ({
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+  },
+}))
+
+vi.mock('../features/ai/api', () => ({
+  aiApi: {
+    formatMarkdown: vi.fn(),
+    reviseNote: vi.fn(),
   },
 }))
 
@@ -82,6 +90,17 @@ describe('NoteVault workspace', () => {
       note: { ...note, text: 'Updated note', tags: ['updated'], updatedAt: 1710000002000 },
     })
     vi.mocked(notesApi.delete).mockResolvedValue({ ok: true })
+    vi.mocked(aiApi.formatMarkdown).mockImplementation(async ({ text }) => ({
+      text,
+      changed: false,
+      model: 'deepseek-ai/DeepSeek-V4-Flash',
+      traceId: null,
+    }))
+    vi.mocked(aiApi.reviseNote).mockResolvedValue({
+      text: 'AI revised note',
+      model: 'deepseek-ai/DeepSeek-V4-Flash',
+      traceId: null,
+    })
   })
 
   it('loads the workspace and switches between Markdown write and preview', async () => {
@@ -352,6 +371,278 @@ describe('NoteVault workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss error notification' }))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByRole('main', { name: 'Notes workspace' })).toBeInTheDocument()
+  })
+
+  it('reviews changed AI formatting and applies it without changing tags', async () => {
+    vi.mocked(aiApi.formatMarkdown).mockResolvedValueOnce({
+      text: '# Formatted note\n\n- item',
+      changed: true,
+      model: 'deepseek-ai/DeepSeek-V4-Flash',
+      traceId: 'trace-test',
+    })
+    await renderWorkspace()
+    fireEvent.change(screen.getByLabelText('Note body (Markdown)'), {
+      target: { value: '#Formatted note\n-item' },
+    })
+    fireEvent.change(screen.getByPlaceholderText(/comma-separated/i), {
+      target: { value: 'Work, Ideas' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add note' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Review AI formatting' })
+    expect(within(dialog).getByLabelText('Original Markdown')).toHaveTextContent('#Formatted note')
+    expect(within(dialog).getByLabelText('Formatted Markdown')).toHaveTextContent('# Formatted note')
+    expect(notesApi.create).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Apply & Save' }))
+
+    await waitFor(() => expect(notesApi.create).toHaveBeenCalledWith({
+      text: '# Formatted note\n\n- item',
+      tags: ['work', 'ideas'],
+    }))
+    expect(screen.getByLabelText('Note body (Markdown)')).toHaveValue('')
+  })
+
+  it('can cancel formatting review or save the exact original draft', async () => {
+    vi.mocked(aiApi.formatMarkdown).mockResolvedValue({
+      text: 'Formatted draft',
+      changed: true,
+      model: 'deepseek-ai/DeepSeek-V4-Flash',
+      traceId: null,
+    })
+    await renderWorkspace()
+    const body = screen.getByLabelText('Note body (Markdown)')
+    fireEvent.change(body, { target: { value: 'Original draft' } })
+    const saveButton = screen.getByRole('button', { name: 'Add note' })
+    fireEvent.click(saveButton)
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
+    expect(body).toHaveValue('Original draft')
+    expect(notesApi.create).not.toHaveBeenCalled()
+    await waitFor(() => expect(saveButton).toHaveFocus())
+
+    fireEvent.click(saveButton)
+    const dialog = await screen.findByRole('dialog', { name: 'Review AI formatting' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save Original' }))
+    await waitFor(() => expect(notesApi.create).toHaveBeenCalledWith({
+      text: 'Original draft', tags: [],
+    }))
+  })
+
+  it('preserves a draft after formatting failure and supports retry', async () => {
+    vi.mocked(aiApi.formatMarkdown)
+      .mockRejectedValueOnce(new Error('AI service is temporarily unavailable'))
+      .mockImplementationOnce(async ({ text }) => ({
+        text,
+        changed: false,
+        model: 'deepseek-ai/DeepSeek-V4-Flash',
+        traceId: null,
+      }))
+    await renderWorkspace()
+    const body = screen.getByLabelText('Note body (Markdown)')
+    fireEvent.change(body, { target: { value: 'Failure-safe draft' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add note' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'AI formatting unavailable' })
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('temporarily unavailable')
+    expect(body).toHaveValue('Failure-safe draft')
+    expect(notesApi.create).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Retry AI formatting' }))
+    await waitFor(() => expect(notesApi.create).toHaveBeenCalledWith({
+      text: 'Failure-safe draft', tags: [],
+    }))
+  })
+
+  it('falls back to saving the original after formatting failure', async () => {
+    vi.mocked(aiApi.formatMarkdown).mockRejectedValueOnce(new Error('Formatting timed out'))
+    await renderWorkspace()
+    fireEvent.change(screen.getByLabelText('Note body (Markdown)'), {
+      target: { value: 'Keep this exact draft' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add note' }))
+    const dialog = await screen.findByRole('dialog', { name: 'AI formatting unavailable' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save Original' }))
+    await waitFor(() => expect(notesApi.create).toHaveBeenCalledWith({
+      text: 'Keep this exact draft', tags: [],
+    }))
+  })
+
+  it('keeps an AI Assist revision separate until Apply to draft', async () => {
+    vi.mocked(aiApi.reviseNote)
+      .mockResolvedValueOnce({
+        text: '## Structured note\n\n- First item',
+        model: 'deepseek-ai/DeepSeek-V4-Flash',
+        traceId: null,
+      })
+      .mockResolvedValueOnce({
+        text: '## Structured note\n\n- [ ] First item',
+        model: 'deepseek-ai/DeepSeek-V4-Flash',
+        traceId: null,
+      })
+    await renderWorkspace()
+    const body = screen.getByLabelText('Note body (Markdown)')
+    fireEvent.change(body, { target: { value: 'First item' } })
+    fireEvent.change(screen.getByPlaceholderText(/comma-separated/i), { target: { value: 'Work' } })
+    const aiButton = screen.getByRole('button', { name: 'AI Assist' })
+    expect(aiButton).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(aiButton)
+    expect(aiButton).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.change(screen.getByLabelText('Editing instruction'), {
+      target: { value: 'Add a heading and list.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /generate revision/i }))
+    expect(await screen.findByRole('heading', { name: 'Structured note' })).toBeInTheDocument()
+    expect(body).toHaveValue('First item')
+    expect(notesApi.create).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByLabelText('Editing instruction'), {
+      target: { value: 'Convert it to a checklist.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /generate revision/i }))
+    await waitFor(() => expect(aiApi.reviseNote).toHaveBeenLastCalledWith({
+      text: '## Structured note\n\n- First item',
+      instruction: 'Convert it to a checklist.',
+    }, expect.any(AbortSignal)))
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply to draft' }))
+    expect(body).toHaveValue('## Structured note\n\n- [ ] First item')
+    expect(screen.queryByRole('region', { name: 'AI Assist' })).not.toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/comma-separated/i)).toHaveValue('Work')
+    expect(notesApi.create).not.toHaveBeenCalled()
+  })
+
+  it('locks an existing AI candidate while the submitted draft is being formatted', async () => {
+    let resolveFormat!: (value: Awaited<ReturnType<typeof aiApi.formatMarkdown>>) => void
+    vi.mocked(aiApi.reviseNote).mockResolvedValueOnce({
+      text: 'AI candidate that must not replace the submitted snapshot',
+      model: 'deepseek-ai/DeepSeek-V4-Flash',
+      traceId: null,
+    })
+    vi.mocked(aiApi.formatMarkdown).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveFormat = resolve
+    }))
+    await renderWorkspace()
+    const body = screen.getByLabelText('Note body (Markdown)')
+    const tagInput = screen.getByPlaceholderText(/comma-separated/i)
+    fireEvent.change(body, { target: { value: 'Submitted draft' } })
+    fireEvent.change(tagInput, { target: { value: 'Work' } })
+    fireEvent.click(screen.getByRole('button', { name: 'AI Assist' }))
+    fireEvent.change(screen.getByLabelText('Editing instruction'), { target: { value: 'Revise it.' } })
+    fireEvent.click(screen.getByRole('button', { name: /generate revision/i }))
+    const applyButton = await screen.findByRole('button', { name: 'Apply to draft' })
+    expect(applyButton).toBeEnabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add note' }))
+    expect(body).toBeDisabled()
+    expect(tagInput).toBeDisabled()
+    expect(applyButton).toBeDisabled()
+    fireEvent.click(applyButton)
+    expect(body).toHaveValue('Submitted draft')
+
+    resolveFormat({
+      text: 'Submitted draft',
+      changed: false,
+      model: 'deepseek-ai/DeepSeek-V4-Flash',
+      traceId: null,
+    })
+    await waitFor(() => expect(notesApi.create).toHaveBeenCalledWith({
+      text: 'Submitted draft', tags: ['work'],
+    }))
+  })
+
+  it('blocks edit, delete, and sign-out modals while formatting is active', async () => {
+    let resolveFormat!: (value: Awaited<ReturnType<typeof aiApi.formatMarkdown>>) => void
+    vi.mocked(aiApi.formatMarkdown).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveFormat = resolve
+    }))
+    await renderWorkspace()
+    fireEvent.change(screen.getByLabelText('Note body (Markdown)'), {
+      target: { value: 'Draft being formatted' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add note' }))
+
+    const editButton = screen.getByRole('button', { name: /edit note from/i })
+    const deleteButton = screen.getByRole('button', { name: /delete note from/i })
+    const signOutButton = screen.getByRole('button', { name: 'Sign out' })
+    expect(editButton).toBeDisabled()
+    expect(deleteButton).toBeDisabled()
+    expect(signOutButton).toBeDisabled()
+    fireEvent.click(editButton)
+    fireEvent.click(deleteButton)
+    fireEvent.click(signOutButton)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    resolveFormat({
+      text: '# Draft being formatted',
+      changed: true,
+      model: 'deepseek-ai/DeepSeek-V4-Flash',
+      traceId: null,
+    })
+    const review = await screen.findByRole('dialog', { name: 'Review AI formatting' })
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    fireEvent.click(within(review).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(editButton).toBeEnabled())
+    expect(deleteButton).toBeEnabled()
+    expect(signOutButton).toBeEnabled()
+  })
+
+  it('prevents a stale AI candidate from replacing a draft changed during the request', async () => {
+    let resolveRevision!: (value: Awaited<ReturnType<typeof aiApi.reviseNote>>) => void
+    vi.mocked(aiApi.reviseNote)
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveRevision = resolve
+      }))
+      .mockResolvedValueOnce({
+        text: 'Candidate based on the newer draft',
+        model: 'deepseek-ai/DeepSeek-V4-Flash',
+        traceId: null,
+      })
+    await renderWorkspace()
+    const body = screen.getByLabelText('Note body (Markdown)')
+    fireEvent.change(body, { target: { value: 'Source draft' } })
+    fireEvent.click(screen.getByRole('button', { name: 'AI Assist' }))
+    fireEvent.change(screen.getByLabelText('Editing instruction'), { target: { value: 'Improve it.' } })
+    fireEvent.click(screen.getByRole('button', { name: /generate revision/i }))
+    fireEvent.change(body, { target: { value: 'Newer local draft' } })
+    resolveRevision({
+      text: 'Stale candidate',
+      model: 'deepseek-ai/DeepSeek-V4-Flash',
+      traceId: null,
+    })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('draft changed')
+    expect(screen.getByRole('button', { name: 'Apply to draft' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeDisabled()
+    expect(body).toHaveValue('Newer local draft')
+
+    fireEvent.change(screen.getByLabelText('Editing instruction'), {
+      target: { value: 'Regenerate from the current draft.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /generate revision/i }))
+    await waitFor(() => expect(aiApi.reviseNote).toHaveBeenLastCalledWith({
+      text: 'Newer local draft',
+      instruction: 'Regenerate from the current draft.',
+    }, expect.any(AbortSignal)))
+    const applyButton = await screen.findByRole('button', { name: 'Apply to draft' })
+    expect(applyButton).toBeEnabled()
+    fireEvent.click(applyButton)
+    expect(body).toHaveValue('Candidate based on the newer draft')
+  })
+
+  it('aborts an active AI Assist request when the panel closes with Escape', async () => {
+    let requestSignal: AbortSignal | undefined
+    vi.mocked(aiApi.reviseNote).mockImplementationOnce((_input, signal) => {
+      requestSignal = signal
+      return new Promise(() => undefined)
+    })
+    await renderWorkspace()
+    fireEvent.change(screen.getByLabelText('Note body (Markdown)'), { target: { value: 'Draft' } })
+    const aiButton = screen.getByRole('button', { name: 'AI Assist' })
+    fireEvent.click(aiButton)
+    fireEvent.change(screen.getByLabelText('Editing instruction'), { target: { value: 'Revise it.' } })
+    fireEvent.click(screen.getByRole('button', { name: /generate revision/i }))
+    expect(requestSignal?.aborted).toBe(false)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(requestSignal?.aborted).toBe(true)
+    expect(screen.queryByLabelText('Editing instruction')).not.toBeInTheDocument()
+    await waitFor(() => expect(aiButton).toHaveFocus())
   })
 })
 
