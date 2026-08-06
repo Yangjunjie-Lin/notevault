@@ -127,7 +127,7 @@ Vercel serverless counters are in-memory per warm instance. They are not global 
 
 ## Dependency rationale
 
-The backend adds pinned `httpx==0.27.2` as a runtime dependency because provider calls require async HTTPS, explicit timeout handling, cancellation, response validation, and controlled retry behavior. It is declared consistently in `backend/requirements.txt` and `backend/pyproject.toml`; development requirements inherit it.
+The backend adds pinned `httpx==0.28.1` as a runtime dependency because provider calls require async HTTPS, explicit timeout handling, cancellation, response validation, and controlled retry behavior. It is declared consistently in `backend/requirements.txt` and `backend/pyproject.toml`; development requirements inherit it.
 
 No LangChain, LlamaIndex, agent runtime, provider browser SDK, global frontend state framework, heavy editor, or diff package is introduced. Dependabot already monitors backend Python dependencies.
 

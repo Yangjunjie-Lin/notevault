@@ -67,7 +67,7 @@ Automated tests must mock the provider. A real SiliconFlow key is neither necess
 
 ## Dependency and supply-chain policy
 
-The AI integration uses `httpx==0.27.2` because the backend requires maintained async HTTPS, explicit timeouts, response validation, and cancellation support. It is a runtime dependency in both `backend/requirements.txt` and `backend/pyproject.toml`; `backend/requirements-dev.txt` inherits it. No SiliconFlow/OpenAI browser SDK or agent framework is needed.
+The AI integration uses `httpx==0.28.1` because the backend requires maintained async HTTPS, explicit timeouts, response validation, and cancellation support. It is a runtime dependency in both `backend/requirements.txt` and `backend/pyproject.toml`; `backend/requirements-dev.txt` inherits it. No SiliconFlow/OpenAI browser SDK or agent framework is needed.
 
 Every new dependency must have a documented feature need, a reviewed version constraint, an updated lock or requirements source, tests, and an audit/advisory review. Prefer existing libraries and standard-library code. Dependabot monitors root npm, frontend npm, backend pip, and GitHub Actions monthly. Dependency updates must preserve the AI mock boundary so audits and CI never require a production provider credential.
 
