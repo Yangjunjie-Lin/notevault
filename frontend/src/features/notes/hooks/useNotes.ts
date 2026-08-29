@@ -143,6 +143,11 @@ export default function useNotes(userId: string | null, filters: NoteFilters) {
     }
   }, [])
 
+  const ingest = useCallback((incoming: Note[]) => {
+    const visible = incoming.filter((note) => noteMatchesFilters(note, filters))
+    if (visible.length) setNotes((current) => mergeNotes(current, visible))
+  }, [filters])
+
   return {
     notes,
     loading,
@@ -155,5 +160,6 @@ export default function useNotes(userId: string | null, filters: NoteFilters) {
     add,
     update,
     remove,
+    ingest,
   }
 }

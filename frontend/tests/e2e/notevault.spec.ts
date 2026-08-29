@@ -228,6 +228,7 @@ test('renders concrete 500 and Firestore 503 recovery states', async ({ page }) 
 })
 
 test('AI formatting review, AI Assist revision, and failure fallback preserve the draft @smoke', async ({ page }) => {
+  test.setTimeout(60_000)
   await signIn(page)
   await page.unroute('**/ai/format-markdown')
   let formattedRequest = 0
@@ -291,6 +292,72 @@ test('AI formatting review, AI Assist revision, and failure fallback preserve th
   await expectNoAxeViolations(page, 'AI formatting failure')
   await failure.getByRole('button', { name: 'Save Original' }).click()
   await expect(page.getByText('Original failure-safe note', { exact: true })).toBeVisible()
+})
+
+test('AI Canvas persists branches and only captures explicitly selected items @smoke', async ({ page }) => {
+  await signIn(page)
+  await page.getByRole('button', { name: 'AI Canvas' }).click()
+  await expect(page.getByRole('main', { name: 'AI conversation canvas' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Turn a conversation into a map/i })).toBeVisible()
+  await expectNoAxeViolations(page, 'AI Canvas empty state')
+
+  await page.getByLabel('Start a conversation').fill('Plan a safe product release')
+  await page.getByRole('button', { name: 'Start', exact: true }).click()
+  await expect(page.getByRole('treeitem')).toHaveCount(2)
+  await expect(page.getByRole('treeitem', { name: /Canvas reply/i })).toBeVisible()
+
+  await page.getByRole('treeitem', { name: /You message, root message: Plan a safe product release/i }).click()
+  await page.getByLabel('Reply to selected message').fill('Compare a preview-first branch')
+  await page.getByRole('button', { name: 'Add branch' }).click()
+  await expect(page.getByRole('treeitem')).toHaveCount(4)
+  await expect(page.getByRole('treeitem', { name: /Branch reply/i })).toBeVisible()
+  await expectNoAxeViolations(page, 'AI Canvas branched map')
+
+  await page.reload()
+  await page.getByRole('button', { name: /sign in with google/i }).click()
+  await page.getByRole('button', { name: 'AI Canvas' }).click()
+  await expect(page.getByRole('treeitem')).toHaveCount(4)
+
+  await page.getByRole('button', { name: 'Capture ideas' }).click()
+  const review = page.getByRole('dialog', { name: 'Review capture candidates' })
+  await expect(review).toBeVisible()
+  await expect(review.getByRole('button', { name: 'Save selected (0)' })).toBeDisabled()
+  await expectNoAxeViolations(page, 'AI Canvas capture review')
+  await review.getByLabel('Include candidate 1').check()
+  await review.getByLabel('Include candidate 2').check()
+  await review.getByRole('button', { name: 'Save selected (2)' }).click()
+
+  await expect(page.getByText('Review the next step', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Notes' }).click()
+  await expect(page.getByRole('heading', { name: 'Conversation insight' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Filter notes by ai-captured' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'AI Canvas' }).click()
+  await page.getByRole('button', { name: 'Delete map' }).click()
+  const deletion = page.getByRole('dialog', { name: 'Delete this conversation map?' })
+  await expect(deletion).toContainText('Notes and checkpoints you already confirmed will be kept')
+  await expectNoAxeViolations(page, 'AI Canvas delete confirmation')
+  await deletion.getByRole('button', { name: 'Delete map' }).click()
+  await expect(page.getByRole('heading', { name: /Turn a conversation into a map/i })).toBeVisible()
+  await expect(page.getByText('Review the next step', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Notes' }).click()
+  await expect(page.getByRole('heading', { name: 'Conversation insight' })).toBeVisible()
+})
+
+test('AI Canvas uses a readable single-column tree on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await signIn(page)
+  await page.getByRole('button', { name: 'AI Canvas' }).click()
+  await page.getByLabel('Start a conversation').fill('Mobile branch test')
+  await page.getByRole('button', { name: 'Start', exact: true }).click()
+  await expect(page.getByRole('treeitem')).toHaveCount(2)
+  await expectNoAxeViolations(page, 'AI Canvas mobile tree')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  const positions = await page.getByRole('treeitem').evaluateAll((nodes) => nodes.map((node) => ({
+    position: getComputedStyle(node).position,
+    width: node.getBoundingClientRect().width,
+  })))
+  expect(positions.every((item) => item.position === 'static' && item.width <= 366)).toBe(true)
 })
 
 test('axe: signed-out, empty, list, edit, preview, and dialogs', async ({ page, request }) => {

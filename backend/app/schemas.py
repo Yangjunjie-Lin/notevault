@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ErrorResponse(BaseModel):
@@ -112,3 +114,187 @@ class UpdateNoteResponse(BaseModel):
 
 class DeleteNoteResponse(BaseModel):
     ok: bool
+
+
+class ConversationStartRequest(AiTextRequest):
+    clientRequestId: str = Field(..., min_length=8, max_length=80)
+
+    @field_validator("clientRequestId")
+    @classmethod
+    def normalize_request_id(cls, value: str) -> str:
+        value = value.strip()
+        if not value or "/" in value:
+            raise ValueError("Request identifier is invalid")
+        return value
+
+
+class ConversationReplyRequest(AiTextRequest):
+    parentId: str = Field(..., min_length=1, max_length=1500)
+    clientRequestId: str = Field(..., min_length=8, max_length=80)
+
+    @field_validator("parentId", "clientRequestId")
+    @classmethod
+    def normalize_conversation_ids(cls, value: str) -> str:
+        value = value.strip()
+        if not value or "/" in value:
+            raise ValueError("Conversation identifiers are invalid")
+        return value
+
+
+class ConversationMessageOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    parentId: str | None = None
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=5000)
+    createdAt: int
+
+
+class ConversationSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    title: str = Field(..., min_length=1, max_length=80)
+    createdAt: int
+    updatedAt: int
+    messageCount: int = Field(..., ge=0, le=500)
+
+
+class ConversationDetail(ConversationSummary):
+    messages: list[ConversationMessageOut]
+
+
+class ConversationsResponse(BaseModel):
+    conversations: list[ConversationSummary]
+
+
+class DeleteConversationResponse(BaseModel):
+    ok: bool
+
+
+class CaptureSuggestionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    messageId: str = Field(..., min_length=1, max_length=1500)
+    intent: Literal["both", "notes", "checkpoints"] = "both"
+
+    @field_validator("messageId")
+    @classmethod
+    def normalize_message_id(cls, value: str) -> str:
+        value = value.strip()
+        if not value or "/" in value:
+            raise ValueError("Message identifier is invalid")
+        return value
+
+
+class CaptureSuggestion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(..., min_length=1, max_length=80)
+    kind: Literal["note", "checkpoint"]
+    title: str = Field(..., min_length=1, max_length=120)
+    content: str = Field(..., min_length=1, max_length=2000)
+
+
+class CaptureSuggestionsResponse(BaseModel):
+    suggestions: list[CaptureSuggestion] = Field(default_factory=list, max_length=12)
+    model: str = Field(..., min_length=1)
+    traceId: str | None = Field(default=None, max_length=128)
+
+
+class CaptureItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["note", "checkpoint"]
+    title: str = Field(..., min_length=1, max_length=120)
+    content: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("title", "content")
+    @classmethod
+    def normalize_capture_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Capture content must not be blank")
+        return value
+
+
+class CaptureItemsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sourceMessageId: str = Field(..., min_length=1, max_length=1500)
+    clientRequestId: str = Field(..., min_length=8, max_length=80)
+    items: list[CaptureItem] = Field(..., min_length=1, max_length=12)
+
+    @field_validator("sourceMessageId", "clientRequestId")
+    @classmethod
+    def normalize_capture_ids(cls, value: str) -> str:
+        value = value.strip()
+        if not value or "/" in value:
+            raise ValueError("Capture identifiers are invalid")
+        return value
+
+
+class CheckpointOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    title: str
+    details: str
+    completed: bool
+    sourceConversationId: str
+    sourceMessageId: str
+    createdAt: int
+    completedAt: int | None = None
+
+
+class CaptureItemsResponse(BaseModel):
+    notes: list[NoteOut] = Field(default_factory=list)
+    checkpoints: list[CheckpointOut] = Field(default_factory=list)
+
+
+class CheckpointsResponse(BaseModel):
+    checkpoints: list[CheckpointOut]
+
+
+class CheckpointUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    completed: bool
+
+
+class UpdateCheckpointResponse(BaseModel):
+    checkpoint: CheckpointOut
+
+
+class AiSuggestionItem(BaseModel):
+    """Internal provider-output contract; never accepted directly from clients."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["note", "checkpoint"]
+    title: str = Field(..., min_length=1, max_length=120)
+    content: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("title", "content")
+    @classmethod
+    def trim_suggestion_text(cls, value: str) -> str:
+        return value.strip()
+
+
+class AiSuggestionEnvelope(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[AiSuggestionItem] = Field(default_factory=list, max_length=12)
+
+    @model_validator(mode="after")
+    def require_unique_useful_items(self):
+        seen: set[tuple[str, str]] = set()
+        unique = []
+        for item in self.items:
+            key = (item.kind, item.title.casefold())
+            if key not in seen:
+                seen.add(key)
+                unique.append(item)
+        self.items = unique
+        return self

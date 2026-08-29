@@ -27,6 +27,7 @@ type Props = {
   icon?: ReactNode
   tone?: 'danger' | 'ai'
   confirmVariant?: 'danger' | 'primary'
+  confirmDisabled?: boolean
   wide?: boolean
 }
 
@@ -49,6 +50,7 @@ export default function ConfirmDialog({
   icon,
   tone = 'danger',
   confirmVariant = 'danger',
+  confirmDisabled = false,
   wide = false,
 }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -99,7 +101,9 @@ export default function ConfirmDialog({
       }
       if (event.key !== 'Tab' || !dialogRef.current) return
       const focusable = Array.from(
-        dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+        ),
       )
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
@@ -178,7 +182,7 @@ export default function ConfirmDialog({
             type="button"
             className={`btn ${confirmVariant === 'primary' ? 'btn-primary' : 'btn-danger-solid'}`}
             onClick={onConfirm}
-            disabled={loading}
+            disabled={loading || confirmDisabled}
             aria-busy={loading}
           >
             {loading ? loadingLabel : confirmLabel}

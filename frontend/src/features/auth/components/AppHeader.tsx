@@ -23,6 +23,8 @@ type Props = {
   authReady: boolean
   authBusy: boolean
   workspaceBlocking?: boolean
+  workspaceView?: 'notes' | 'canvas'
+  onWorkspaceNavigate?: (view: 'notes' | 'canvas', trigger: HTMLButtonElement) => void
   onSignIn: () => void
   onSignOut: (trigger: HTMLButtonElement) => void
 }
@@ -39,6 +41,8 @@ export default function AppHeader({
   authReady,
   authBusy,
   workspaceBlocking = false,
+  workspaceView = 'notes',
+  onWorkspaceNavigate,
   onSignIn,
   onSignOut,
 }: Props) {
@@ -55,6 +59,29 @@ export default function AppHeader({
         </div>
         <span className="nv-brand-name">NoteVault</span>
       </a>
+
+      {user && onWorkspaceNavigate && (
+        <nav className="nv-primary-nav" aria-label="Workspace navigation">
+          <button
+            type="button"
+            className={workspaceView === 'notes' ? 'nv-primary-nav__item nv-primary-nav__item--active' : 'nv-primary-nav__item'}
+            aria-current={workspaceView === 'notes' ? 'page' : undefined}
+            onClick={(event) => onWorkspaceNavigate('notes', event.currentTarget)}
+            disabled={workspaceBlocking}
+          >
+            Notes
+          </button>
+          <button
+            type="button"
+            className={workspaceView === 'canvas' ? 'nv-primary-nav__item nv-primary-nav__item--active' : 'nv-primary-nav__item'}
+            aria-current={workspaceView === 'canvas' ? 'page' : undefined}
+            onClick={(event) => onWorkspaceNavigate('canvas', event.currentTarget)}
+            disabled={workspaceBlocking}
+          >
+            AI Canvas
+          </button>
+        </nav>
+      )}
 
       <nav className="nv-header-end" aria-label="Account navigation">
         {user ? (

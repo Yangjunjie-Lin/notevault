@@ -1,11 +1,11 @@
 # NoteVault — production-oriented AI-assisted Markdown notebook
 
 [![CI](https://github.com/Yangjunjie-Lin/notevault/actions/workflows/ci.yml/badge.svg)](https://github.com/Yangjunjie-Lin/notevault/actions/workflows/ci.yml)
-![Version](https://img.shields.io/badge/version-1.2.0-blue)
+![Version](https://img.shields.io/badge/version-1.3.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Status](https://img.shields.io/badge/status-active%20development-informational)
 
-NoteVault is a Markdown notebook with Firebase-authenticated user isolation, a typed FastAPI contract, safe Markdown rendering, mutation-safe timeline cursors, bounded filtered search, and controlled AI editing. Version 1.2.0 adds automatic Markdown formatting and an in-composer AI Assist workflow powered by DeepSeek V4 Flash through SiliconFlow.
+NoteVault is a Markdown notebook with Firebase-authenticated user isolation, a typed FastAPI contract, safe Markdown rendering, mutation-safe timeline cursors, bounded filtered search, and controlled AI workflows. Version 1.3.0 adds a persistent visual AI Canvas where any historical message can become a new branch and user-reviewed ideas can become notes or action checkpoints.
 
 **Live app:** [https://notevault-lovat.vercel.app](https://notevault-lovat.vercel.app) · **API docs:** [https://notevault-api.vercel.app/docs](https://notevault-api.vercel.app/docs)
 
@@ -30,6 +30,11 @@ NoteVault is a Markdown notebook with Firebase-authenticated user isolation, a t
 - Review choices when formatting changes the draft: **Apply & Save**, **Save Original**, or **Cancel**
 - Failure recovery that preserves the draft and offers retry or save-original paths
 - In-composer **AI Assist** with iterative revision, preview/source views, retry, discard, close, and explicit **Apply to draft**
+- Persistent **AI Canvas** conversations rendered as connected user/AI nodes
+- Branching from any historical message without changing or losing the original path
+- AI-generated note/checkpoint candidates with zero default selections, per-item editing, and explicit batch confirmation
+- Private action checkpoints with open/completed state and source-message provenance
+- User-controlled Canvas deletion that removes the conversation graph while retaining already confirmed notes and checkpoints
 - Normalized tags, text search, exact tag filtering, signed cursor pagination, and bounded filtered search
 - Abortable requests, stale-response protection, keyboard access, focus restoration, reduced motion, and responsive layouts
 
@@ -37,9 +42,11 @@ NoteVault is a Markdown notebook with Firebase-authenticated user isolation, a t
 
 Automatic formatting sends the current note draft from the NoteVault backend to SiliconFlow once after the user initiates a save. If the result differs, the user reviews it before anything is written. Tags are not sent to or changed by the formatter.
 
-AI Assist sends the current Markdown candidate and the user's editing instruction to SiliconFlow. A returned revision remains temporary browser session state until **Apply to draft** is selected, and applying still does not save the note. AI conversation state is not stored in Firestore.
+AI Assist sends the current Markdown candidate and the user's editing instruction to SiliconFlow. A returned revision remains temporary browser session state until **Apply to draft** is selected, and applying still does not save the note.
 
-> When AI formatting or AI Assist is used, the current note draft is sent from the NoteVault backend to SiliconFlow for processing.
+AI Canvas sends the selected node's ancestor branch and the new message when generating a reply. Completed user/assistant turns are persisted in Firestore for the authenticated user. **Capture ideas** sends the selected branch for structured extraction, but saves nothing until the user checks and edits individual candidates and confirms **Save selected**.
+
+> When an AI feature is submitted, the relevant note draft or selected AI Canvas branch is sent from the NoteVault backend to SiliconFlow for processing.
 
 NoteVault does not claim that provider processing is local, zero-knowledge, end-to-end encrypted, anonymous, or never retained. Review [AI privacy](docs/ai-privacy.md) and SiliconFlow's current policies before submitting sensitive content.
 
@@ -53,7 +60,7 @@ flowchart LR
   browser -->|"Bearer ID token"| api["FastAPI on Vercel"]
   api --> verify["Firebase Admin verification"]
   verify --> notesLimit["Read / write limiter"]
-  notesLimit --> firestore["Cloud Firestore"]
+  notesLimit --> firestore["Notes, conversation graph, checkpoints"]
   verify --> aiLimit["AI limiter per verified UID"]
   aiLimit --> aiService["AI service and output validation"]
   aiService -->|"Backend Bearer secret"| siliconflow["SiliconFlow Chat Completions"]
@@ -105,7 +112,7 @@ Local URLs are `http://localhost:5173`, `http://localhost:8000`, and `http://loc
 
 ## API overview
 
-All `/notes` and `/ai` endpoints require `Authorization: Bearer <firebase-id-token>`.
+All `/notes`, `/ai`, `/conversations`, and `/checkpoints` endpoints require `Authorization: Bearer <firebase-id-token>`.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -116,6 +123,14 @@ All `/notes` and `/ai` endpoints require `Authorization: Bearer <firebase-id-tok
 | `DELETE` | `/notes/{note_id}` | Delete an owned note |
 | `POST` | `/ai/format-markdown` | Normalize a Markdown draft before save |
 | `POST` | `/ai/revise-note` | Produce a complete revision candidate |
+| `GET` / `POST` | `/conversations` | List or start private visual conversations |
+| `GET` | `/conversations/{conversation_id}` | Load the complete owned message graph |
+| `DELETE` | `/conversations/{conversation_id}` | Delete an owned graph while retaining confirmed notes/checkpoints |
+| `POST` | `/conversations/{conversation_id}/messages` | Generate a child branch from an owned message |
+| `POST` | `/conversations/{conversation_id}/suggestions` | Prepare review-only note/checkpoint candidates |
+| `POST` | `/conversations/{conversation_id}/captures` | Materialize only user-selected candidates |
+| `GET` | `/checkpoints` | List captured action items |
+| `PATCH` | `/checkpoints/{checkpoint_id}` | Complete or reopen an owned action item |
 
 Clients cannot submit a UID, provider key, model, base URL, temperature, maximum token count, or system prompt. Request bodies reject unknown fields. See the live API documentation or committed [OpenAPI contract](backend/openapi.json).
 
@@ -145,9 +160,9 @@ The Vercel monorepo uses separate Projects:
 | Frontend | `frontend` | https://notevault-lovat.vercel.app |
 | Backend | `backend` | https://notevault-api.vercel.app |
 
-Configure all `SILICONFLOW_*` variables only in the backend `notevault-api` Project. The frontend Project needs `VITE_API_BASE_URL` and Firebase Web configuration, but no SiliconFlow secret. After building, scan frontend assets for provider-key names, direct provider endpoints, and token-shaped values; then perform an authenticated production smoke that exercises formatting review, AI Assist candidate application, and the provider-failure save-original fallback. Detailed steps are in [deployment](docs/deployment.md).
+Configure all `SILICONFLOW_*` variables only in the backend `notevault-api` Project. The frontend Project needs `VITE_API_BASE_URL` and Firebase Web configuration, but no SiliconFlow secret. Deploy the committed Firestore composite indexes before enabling AI Canvas. After building, scan frontend assets for provider-key names, direct provider endpoints, and token-shaped values; then perform an authenticated production smoke that exercises formatting review, AI Assist, a branched Canvas turn, selective capture, and provider-failure recovery. Detailed steps are in [deployment](docs/deployment.md).
 
-Rate limiting is best-effort per warm Vercel instance, not globally distributed. A provider outage degrades AI features while preserving ordinary note access and an explicit save-original path. AI sessions are not persisted, responses are non-streaming, and this release has no RAG, embeddings, vector database, or general knowledge chat.
+Rate limiting is best-effort per warm Vercel instance, not globally distributed. A provider outage degrades AI features while preserving persisted conversations, checkpoints, ordinary note access, and an explicit save-original path. Responses are non-streaming, and this release has no RAG, embeddings, vector database, external search, or autonomous tool execution.
 
 ## Documentation
 
@@ -157,7 +172,7 @@ Rate limiting is best-effort per warm Vercel instance, not globally distributed.
 - [Deployment and rollback](docs/deployment.md)
 - [Maintenance policy](docs/maintenance.md)
 - [Firestore security rules](docs/firestore-security-rules.md)
-- [v1.2.0 release notes](docs/release-notes-v1.2.0.md)
+- [v1.3.0 release notes](docs/release-notes-v1.3.0.md)
 - [Changelog](CHANGELOG.md)
 
 ## Security and contributing

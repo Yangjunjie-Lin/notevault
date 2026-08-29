@@ -48,7 +48,7 @@ def fetch(
     request = Request(
         urljoin(f"{base.rstrip('/')}/", path.lstrip('/')),
         method=method,
-        headers={"User-Agent": "NoteVault-production-smoke/1.2", **(headers or {})},
+        headers={"User-Agent": "NoteVault-production-smoke/1.3", **(headers or {})},
         data=body,
     )
     try:
@@ -103,6 +103,17 @@ def main() -> int:
     notes_status, _, _ = fetch("/notes", base=BACKEND_URL)
     require(notes_status == 401, f"anonymous backend /notes returned {notes_status}, expected 401")
 
+    conversations_status, _, _ = fetch("/conversations", base=BACKEND_URL)
+    require(
+        conversations_status == 401,
+        f"anonymous backend /conversations returned {conversations_status}, expected 401",
+    )
+    checkpoints_status, _, _ = fetch("/checkpoints", base=BACKEND_URL)
+    require(
+        checkpoints_status == 401,
+        f"anonymous backend /checkpoints returned {checkpoints_status}, expected 401",
+    )
+
     json_headers = {"Content-Type": "application/json"}
     format_status, _, _ = fetch(
         "/ai/format-markdown",
@@ -126,6 +137,21 @@ def main() -> int:
         revise_status == 401,
         f"anonymous backend /ai/revise-note returned {revise_status}, expected 401",
     )
+    conversation_start_status, _, _ = fetch(
+        "/conversations",
+        base=BACKEND_URL,
+        method="POST",
+        headers=json_headers,
+        body=b'{"text":"smoke","clientRequestId":"production-smoke-001"}',
+    )
+    require(
+        conversation_start_status == 401,
+        "anonymous backend POST /conversations returned "
+        f"{conversation_start_status}, expected 401",
+    )
+
+    for required_path in ("/conversations", "/conversations/{conversation_id}", "/checkpoints"):
+        require(required_path in openapi.get("paths", {}), f"OpenAPI is missing {required_path}")
 
     options_status, options_headers, _ = fetch(
         "/notes",
@@ -144,7 +170,7 @@ def main() -> int:
     )
 
     print(
-        "Production anonymous smoke passed for frontend, backend, note/AI auth, "
+        "Production anonymous smoke passed for frontend, backend, note/AI/canvas auth, "
         "provider-secret exclusions, assets, and CORS."
     )
     return 0

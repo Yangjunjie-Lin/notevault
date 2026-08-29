@@ -8,6 +8,11 @@ from app.dependencies import get_current_uid
 from app.main import app
 from app.rate_limit import read_notes_limiter, write_notes_limiter
 from app.routers import notes as notes_router
+from app.routers import conversations as conversations_router
+from app.routers import checkpoints as checkpoints_router
+from app.ai.client import Completion
+from app.ai.service import get_ai_service
+from app.schemas import AiSuggestionEnvelope, AiSuggestionItem
 from tests.conftest import FakeFirestore
 from pydantic import BaseModel, Field
 
@@ -17,6 +22,38 @@ read_notes_limiter.reset()
 write_notes_limiter.reset()
 app.dependency_overrides[get_current_uid] = lambda: "e2e-user"
 notes_router.get_firestore_client = lambda: database
+conversations_router.get_firestore_client = lambda: database
+checkpoints_router.get_firestore_client = lambda: database
+
+
+class E2EAiService:
+    model_name = "deepseek-ai/DeepSeek-V4-Flash"
+
+    async def chat(self, history, text):
+        prefix = "Branch reply" if history else "Canvas reply"
+        return Completion(
+            content=f"## {prefix}\n\nI mapped your idea: **{text}**",
+            trace_id="e2e-conversation",
+        )
+
+    async def suggest_captures(self, transcript, intent):
+        candidates = []
+        if intent in {"both", "notes"}:
+            candidates.append(AiSuggestionItem(
+                kind="note",
+                title="Conversation insight",
+                content="A concise insight reviewed from this branch.",
+            ))
+        if intent in {"both", "checkpoints"}:
+            candidates.append(AiSuggestionItem(
+                kind="checkpoint",
+                title="Review the next step",
+                content="Turn the selected branch into a concrete follow-up.",
+            ))
+        return AiSuggestionEnvelope(items=candidates), "e2e-capture"
+
+
+app.dependency_overrides[get_ai_service] = lambda: E2EAiService()
 
 
 class SeedRequest(BaseModel):
@@ -31,6 +68,9 @@ def reset_test_database():
     database = FakeFirestore()
     read_notes_limiter.reset()
     write_notes_limiter.reset()
+    notes_router.get_firestore_client = lambda: database
+    conversations_router.get_firestore_client = lambda: database
+    checkpoints_router.get_firestore_client = lambda: database
     return {"ok": True}
 
 

@@ -102,3 +102,70 @@ def test_real_firestore_timestamp_values_match_the_api_contract(
 
     assert response.status_code == 200
     assert response.json()["notes"][0]["createdAt"] == 1_784_023_200_000
+
+
+def test_real_firestore_canvas_batches_rehydrate_branches_and_use_indexes(
+    integration_client,
+    emulator_db,
+):
+    started = integration_client.post(
+        "/conversations",
+        json={"text": "Plan the integration release", "clientRequestId": "integration-start-001"},
+    )
+    assert started.status_code == 201
+    root = started.json()
+    root_assistant = root["messages"][1]
+
+    replied = integration_client.post(
+        f"/conversations/{root['id']}/messages",
+        json={
+            "parentId": root_assistant["id"],
+            "text": "Create an emulator branch",
+            "clientRequestId": "integration-reply-001",
+        },
+    )
+    listed = integration_client.get("/conversations")
+    loaded = integration_client.get(f"/conversations/{root['id']}")
+
+    assert replied.status_code == 200
+    assert listed.status_code == 200
+    assert listed.json()["conversations"][0]["messageCount"] == 4
+    assert loaded.status_code == 200
+    assert [message["role"] for message in loaded.json()["messages"]] == [
+        "user", "assistant", "user", "assistant",
+    ]
+    assert loaded.json()["messages"][2]["parentId"] == root_assistant["id"]
+    assert len(list(emulator_db.collection("conversation_messages").stream())) == 4
+
+
+def test_real_firestore_capture_is_idempotent_and_graph_deletion_preserves_approved_items(
+    integration_client,
+    emulator_db,
+):
+    started = integration_client.post(
+        "/conversations",
+        json={"text": "Prepare approved records", "clientRequestId": "integration-start-002"},
+    ).json()
+    source_id = started["messages"][1]["id"]
+    payload = {
+        "sourceMessageId": source_id,
+        "clientRequestId": "integration-capture-001",
+        "items": [
+            {"kind": "note", "title": "Approved note", "content": "Keep this record."},
+            {"kind": "checkpoint", "title": "Approved task", "content": "Keep this action."},
+        ],
+    }
+
+    first = integration_client.post(f"/conversations/{started['id']}/captures", json=payload)
+    second = integration_client.post(f"/conversations/{started['id']}/captures", json=payload)
+    deleted = integration_client.delete(f"/conversations/{started['id']}")
+
+    assert first.status_code == 201
+    assert second.json() == first.json()
+    assert deleted.status_code == 200
+    assert not emulator_db.collection("conversations").document(started["id"]).get().exists
+    assert list(emulator_db.collection("conversation_messages").stream()) == []
+    assert list(emulator_db.collection("capture_batches").stream()) == []
+    assert len(list(emulator_db.collection("notes").stream())) == 1
+    assert len(list(emulator_db.collection("checkpoints").stream())) == 1
+    assert integration_client.get("/checkpoints").json()["checkpoints"][0]["title"] == "Approved task"

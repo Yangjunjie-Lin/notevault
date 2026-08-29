@@ -10,6 +10,7 @@ import {
   subscribeToAuth,
   type AuthUser,
 } from '../features/auth/firebase'
+import ConversationWorkspace from '../features/conversations/components/ConversationWorkspace'
 import EmptyState from '../features/notes/components/EmptyState'
 import NoteCard from '../features/notes/components/NoteCard'
 import NoteComposer from '../features/notes/components/NoteComposer'
@@ -25,6 +26,11 @@ type PendingDiscard =
   | { kind: 'cancel' }
   | { kind: 'edit'; note: Note }
   | { kind: 'signout' }
+  | { kind: 'navigate'; view: 'notes' | 'canvas' }
+
+function viewFromLocation(): 'notes' | 'canvas' {
+  return window.location.hash === '#canvas' ? 'canvas' : 'notes'
+}
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
@@ -44,6 +50,8 @@ export default function App() {
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [pendingDiscard, setPendingDiscard] = useState<PendingDiscard | null>(null)
   const [statusMessage, setStatusMessage] = useState('')
+  const [workspaceView, setWorkspaceView] = useState<'notes' | 'canvas'>(viewFromLocation)
+  const [canvasBlocking, setCanvasBlocking] = useState(false)
   const deleteTrigger = useRef<HTMLElement | null>(null)
   const discardTrigger = useRef<HTMLElement | null>(null)
   const workspace = useNotes(user?.uid ?? null, filters)
@@ -70,6 +78,21 @@ export default function App() {
     const id = window.setTimeout(() => setStatusMessage(''), 4000)
     return () => window.clearTimeout(id)
   }, [statusMessage])
+
+  useEffect(() => {
+    function handleHistoryNavigation() {
+      const next = viewFromLocation()
+      if (next === workspaceView) return
+      if (dirty) {
+        window.history.pushState(null, '', workspaceView === 'canvas' ? '#canvas' : '#notes')
+        setPendingDiscard({ kind: 'navigate', view: next })
+        return
+      }
+      setWorkspaceView(next)
+    }
+    window.addEventListener('popstate', handleHistoryNavigation)
+    return () => window.removeEventListener('popstate', handleHistoryNavigation)
+  }, [dirty, workspaceView])
 
   const handleDirtyChange = useCallback((nextDirty: boolean) => setDirty(nextDirty), [])
 
@@ -144,9 +167,28 @@ export default function App() {
       setEditingNote(null)
     } else if (action.kind === 'edit') {
       setEditingNote(action.note)
-    } else {
+    } else if (action.kind === 'signout') {
       void performSignOut()
+    } else {
+      setEditingNote(null)
+      navigateWorkspace(action.view)
     }
+  }
+
+  function navigateWorkspace(view: 'notes' | 'canvas') {
+    if (workspaceView === view) return
+    setWorkspaceView(view)
+    window.history.pushState(null, '', view === 'canvas' ? '#canvas' : '#notes')
+  }
+
+  function requestWorkspaceNavigation(view: 'notes' | 'canvas', trigger: HTMLButtonElement) {
+    if (view === workspaceView || composerBlocking || canvasBlocking) return
+    if (workspaceView === 'notes' && dirty) {
+      discardTrigger.current = trigger
+      setPendingDiscard({ kind: 'navigate', view })
+      return
+    }
+    navigateWorkspace(view)
   }
 
   async function submitNote(input: NoteInput) {
@@ -198,7 +240,9 @@ export default function App() {
         user={user}
         authReady={authReady && !authInitializing}
         authBusy={authBusy}
-        workspaceBlocking={composerBlocking}
+        workspaceBlocking={composerBlocking || canvasBlocking}
+        workspaceView={workspaceView}
+        onWorkspaceNavigate={requestWorkspaceNavigation}
         onSignIn={handleSignIn}
         onSignOut={requestSignOut}
       />
@@ -216,7 +260,7 @@ export default function App() {
           <span className="nv-spinner" aria-hidden="true" />
           <span>Restoring your private workspace…</span>
         </main>
-      ) : user ? (
+      ) : user && workspaceView === 'notes' ? (
         <main id="main-content" className="nv-workspace" tabIndex={-1} aria-label="Notes workspace">
           <NoteComposer
             editingNote={editingNote}
@@ -281,6 +325,11 @@ export default function App() {
             )}
           </section>
         </main>
+      ) : user ? (
+        <ConversationWorkspace
+          onNotesCaptured={workspace.ingest}
+          onBlockingChange={setCanvasBlocking}
+        />
       ) : (
         <AuthLanding authReady={authReady} authBusy={authBusy} onSignIn={handleSignIn} />
       )}

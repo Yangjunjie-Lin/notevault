@@ -1,7 +1,7 @@
 {
   "name": "notevault-frontend",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Production React and TypeScript frontend for NoteVault's controlled AI-assisted Markdown workflow.",
   "license": "MIT",
   "type": "module",

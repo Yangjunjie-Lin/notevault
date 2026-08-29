@@ -10,7 +10,7 @@ flowchart LR
   API --> Verify["Firebase Admin token verification"]
   Verify --> UID["Trusted UID"]
   UID --> NoteLimit["Read / write limits"]
-  NoteLimit --> Store["Cloud Firestore"]
+  NoteLimit --> Store["Notes, conversation graph, checkpoints"]
   UID --> AiLimit["Shared AI budget"]
   AiLimit --> AiService["Prompt isolation and output validation"]
   AiService --> Client["SiliconFlow client"]
@@ -21,13 +21,15 @@ flowchart LR
 
 The browser never supplies a trusted UID, never accesses Firestore directly, never receives `SILICONFLOW_API_KEY`, and never calls SiliconFlow. FastAPI verifies the Firebase bearer token before every note and AI request. Missing and cross-user note IDs share the same `404` behavior.
 
-AI use crosses a third-party data boundary. Formatting sends the current Markdown draft; revision sends the current Markdown candidate and explicit editing instruction. Tags, Firebase tokens, UID values, and backend secrets are excluded from the provider request. See [ai-privacy.md](ai-privacy.md).
+AI use crosses a third-party data boundary. Formatting sends the current Markdown draft; revision sends the current Markdown candidate and explicit editing instruction. AI Canvas sends only the selected node's bounded ancestor path and latest user message, or that path for capture extraction. Sibling branches, tags, Firebase tokens, UID values, and backend secrets are excluded from provider requests. See [ai-privacy.md](ai-privacy.md).
 
 ## Backend boundaries
 
 ```text
 app/routers/notes.py       authenticated note persistence routes
 app/routers/ai.py          authenticated AI HTTP contract and sanitized mapping
+app/routers/conversations.py  owned conversation graph, branching, suggestions, and capture
+app/routers/checkpoints.py    owned action checkpoint listing and completion state
 app/ai/client.py           timeout-aware SiliconFlow HTTPS transport and bounded retry
 app/ai/prompts.py          backend-owned formatter/editor system prompts and data delimiters
 app/ai/service.py          request construction, output cleanup, validation, and result mapping
@@ -53,6 +55,8 @@ src/features/notes/components/         composer and note presentation
 src/features/ai/api.ts                 authenticated typed AI adapter
 src/features/ai/hooks/                 abortable AI session/controller state
 src/features/ai/components/            disclosure, assist panel, result, review UI
+src/features/conversations/api.ts       authenticated Canvas/checkpoint HTTP adapter
+src/features/conversations/components/ graph layout, inspector, capture review, checkpoints
 src/features/notes/generated.ts        generated OpenAPI schema types
 src/shared/components/                 accessible feedback/dialog primitives
 src/styles/app.css                     NoteVault design system
@@ -61,6 +65,40 @@ src/styles/app.css                     NoteVault design system
 Presentation components do not call Firebase, FastAPI, or SiliconFlow directly. The AI adapter reuses the authenticated backend request boundary and supports `AbortSignal`. The AI controller owns panel/session state, candidate lineage, request versions, cancellation, and stale-response protection.
 
 Changing the selected note, canceling/resetting the Composer, closing the panel, or signing out cancels active AI work and clears temporary candidate state. A candidate never automatically overwrites the main draft. If the main draft changes after candidate generation, the candidate is stale and cannot silently replace newer text.
+
+AI Canvas is a separate persisted workflow. Each message stores a parent ID, so edges are derived rather than duplicated. Replying to an historical node builds provider context by walking that node's ancestors only; sibling branches are never mixed into the prompt. Long Markdown is summarized on graph cards and rendered in full through `SafeMarkdown` in the inspector. Below 640px, the same semantic tree items become a single-column outline and SVG edges are hidden.
+
+Each completed Canvas turn uses deterministic document IDs and one Firestore write batch for its user node, assistant node, and conversation summary. Provider work completes before the batch begins. This prevents a storage interruption from retaining half of a turn while keeping external network calls outside Firestore atomic work.
+
+Capture is a two-phase human-in-the-loop pipeline: the AI returns a strictly validated JSON envelope of review-only candidates, then the frontend initializes every item unchecked. The materialization endpoint accepts only the checked, user-editable items and uses a deterministic request receipt plus one Firestore write batch, so a repeated confirmation cannot duplicate notes or checkpoints. The provider is never called inside that batch and has no direct persistence tool. Deleting a Canvas removes its conversation/messages and capture receipts; confirmed notes/checkpoints intentionally remain independent user records.
+
+## AI Canvas sequence
+
+```mermaid
+sequenceDiagram
+  actor User
+  participant Canvas
+  participant API as NoteVault API
+  participant AI as SiliconFlow
+  participant Store as Firestore
+
+  User->>Canvas: Select any message and submit a reply
+  Canvas->>API: parentId + text + clientRequestId
+  API->>Store: Verify conversation and parent ownership
+  API->>Store: Read bounded ancestor path
+  API->>AI: Backend prompt + ancestor path + latest message
+  AI-->>API: Complete Markdown reply
+  API->>Store: Persist connected user/assistant nodes
+  API-->>Canvas: Complete updated graph
+  User->>Canvas: Capture ideas from selected node
+  Canvas->>API: messageId + capture intent
+  API->>AI: Selected ancestor path + extraction schema
+  AI-->>API: Structured suggestion payload
+  API-->>Canvas: Validated unchecked candidates
+  User->>Canvas: Check/edit selected items and confirm
+  Canvas->>API: Selected items + idempotency key
+  API->>Store: Atomic note/checkpoint materialization batch
+```
 
 ## Save-time formatting sequence
 
@@ -148,4 +186,4 @@ The frontend test adapter activates only when both `MODE=e2e` and `VITE_TEST_AUT
 
 ## Operational limitations
 
-The AI limiter is per warm serverless instance, not distributed. SiliconFlow unavailability degrades AI features while leaving normal note functionality and an explicit save-original recovery path. AI sessions are not persisted, responses are non-streaming, and v1.2.0 contains no RAG, embeddings, vector store, tool calling, or general-purpose knowledge chat.
+The AI limiter is per warm serverless instance, not distributed. SiliconFlow unavailability degrades new replies, extraction, formatting, and revision while leaving persisted conversations, checkpoints, normal notes, and the save-original recovery path available. Composer AI Assist remains temporary; AI Canvas is persistent. Responses are non-streaming, one graph is capped at 500 messages, and v1.3.0 contains no RAG, embeddings, vector store, external search, or autonomous tool calling.

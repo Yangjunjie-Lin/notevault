@@ -1,6 +1,6 @@
 # AI integration
 
-NoteVault v1.2.0 integrates DeepSeek V4 Flash through SiliconFlow for two narrowly scoped Markdown workflows. It is not a general chat or autonomous-agent system.
+NoteVault v1.3.0 integrates DeepSeek V4 Flash through SiliconFlow for Markdown editing plus a persistent, bounded visual conversation workflow. It is not an autonomous-agent system and cannot call external tools.
 
 ## Supported workflows
 
@@ -15,6 +15,12 @@ An identical result proceeds to normal note persistence. A changed result is rev
 The Composer's AI Assist panel accepts an explicit editing instruction and returns a complete Markdown candidate. The candidate remains temporary and cannot overwrite the editor or database until **Apply to draft** is selected. Applying marks the ordinary Composer draft dirty; it does not save it.
 
 Subsequent revision instructions use the previous AI candidate. Closing, discarding, resetting, switching notes, canceling edit, or signing out cancels active requests and clears temporary state. A candidate generated from an older source draft cannot silently overwrite a newer draft.
+
+### AI Canvas branching and capture
+
+AI Canvas stores a private directed message tree for the verified Firebase user. Starting a conversation creates one user node and one connected assistant node. Submitting from any historical node sends only that node's bounded ancestor path plus the new message, then persists the new user/assistant pair as a child branch. Sibling and descendant branches are not provider context.
+
+**Capture ideas** asks the same backend/provider to return a strict JSON envelope containing atomic `note` and/or `checkpoint` suggestions grounded in the selected branch. Suggestions are review state, start unchecked, and are editable. The provider cannot save them. Only **Save selected (n)** calls the materialization endpoint, which writes the chosen items in one deterministic Firestore batch. Retrying the same capture request does not create duplicates.
 
 ## Provider contract
 
@@ -47,7 +53,7 @@ Base URL, timeout, token limit, and AI rate limit are validated at startup. Base
 
 ## NoteVault API contract
 
-Both endpoints require a valid Firebase ID token. FastAPI derives the trusted UID from that token and rejects unknown request fields. OpenAPI declares the Firebase HTTP Bearer scheme plus the stable `401`, `422`, `429`, `502`, `503`, and `504` responses; `429` documents `Retry-After`.
+All AI-generating endpoints require a valid Firebase ID token. FastAPI derives the trusted UID from that token and rejects unknown request fields. OpenAPI declares the Firebase HTTP Bearer scheme plus stable error responses; `429` documents `Retry-After`.
 
 ### Format Markdown
 
@@ -87,6 +93,24 @@ Content-Type: application/json
 ```
 
 Clients cannot submit a UID, API key, model, provider URL, temperature, maximum tokens, system prompt, or authorization header in these bodies. FastAPI OpenAPI is the source of truth; generate and check the committed frontend types with `npm run contract:generate` and `npm run contract:check`.
+
+### Canvas endpoints
+
+```text
+GET  /conversations
+POST /conversations
+GET  /conversations/{conversation_id}
+DELETE /conversations/{conversation_id}
+POST /conversations/{conversation_id}/messages
+POST /conversations/{conversation_id}/suggestions
+POST /conversations/{conversation_id}/captures
+GET  /checkpoints
+PATCH /checkpoints/{checkpoint_id}
+```
+
+Start/reply bodies include a client-generated idempotency key but never a UID or provider setting. Reply bodies include an owned `parentId`; the server verifies that the conversation and parent belong to the authenticated user before constructing context. A completed model turn is stored with deterministic message IDs in one Firestore batch, so the graph cannot retain only half of the user/assistant pair. Capture confirmation accepts one to twelve user-reviewed items and uses a deterministic target ID per item inside a separate Firestore batch.
+
+Deleting an owned conversation removes its graph and capture receipts but deliberately preserves notes and checkpoints the user already reviewed and confirmed. The UI states that boundary before confirmation.
 
 ## Prompt isolation
 
@@ -133,7 +157,7 @@ No LangChain, LlamaIndex, agent runtime, provider browser SDK, global frontend s
 
 ## Testing
 
-Automated tests mock SiliconFlow. They must never use a real key or make a live provider request. Backend tests cover authentication, request validation, prompts, provider payload/response handling, retry limits, sanitized errors, configuration, and per-UID limits. Frontend and browser tests cover review/apply/fallback paths, candidate state, cancellation, stale responses, conflict protection, keyboard/focus behavior, safe rendering, and tag preservation.
+Automated tests mock SiliconFlow. They must never use a real key or make a live provider request. Backend tests cover authentication, ownership isolation, ancestor-only context, strict extraction JSON, idempotent materialization, request validation, provider handling, retry limits, sanitized errors, configuration, and per-UID limits. Frontend and browser tests cover graph branching/rehydration, zero-default candidate selection, selective note/checkpoint capture, responsive outline fallback, axe, review/apply/fallback paths, cancellation, stale responses, keyboard/focus behavior, safe rendering, and tag preservation.
 
 Run the maintained gates from the repository root:
 
@@ -148,8 +172,9 @@ See [deployment.md](deployment.md) for production configuration and smoke checks
 
 ## Current limitations
 
-- AI sessions are not persisted.
+- Composer AI Assist sessions are not persisted; AI Canvas conversations are.
 - Responses are non-streaming.
-- Provider availability and quota affect both AI workflows.
+- Provider availability and quota affect formatting, Composer revision, Canvas replies, and capture extraction.
 - Save-original fallback always requires an explicit user decision.
-- There is no RAG, embedding, vector storage, external search, tool calling, or general knowledge assistant.
+- The warm-instance AI limiter is not a distributed daily quota.
+- There is no RAG, embedding, vector storage, external search, or tool calling.

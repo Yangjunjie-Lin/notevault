@@ -55,6 +55,130 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/checkpoints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Checkpoints */
+        get: operations["list_checkpoints_checkpoints_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/checkpoints/{checkpoint_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Checkpoint */
+        patch: operations["update_checkpoint_checkpoints__checkpoint_id__patch"];
+        trace?: never;
+    };
+    "/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Conversations */
+        get: operations["list_conversations_conversations_get"];
+        put?: never;
+        /** Start Conversation */
+        post: operations["start_conversation_conversations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/conversations/{conversation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Conversation */
+        get: operations["get_conversation_conversations__conversation_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Conversation
+         * @description Delete a private graph while preserving already captured notes/checkpoints.
+         */
+        delete: operations["delete_conversation_conversations__conversation_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/conversations/{conversation_id}/captures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Capture Items */
+        post: operations["capture_items_conversations__conversation_id__captures_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/conversations/{conversation_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reply To Conversation */
+        post: operations["reply_to_conversation_conversations__conversation_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/conversations/{conversation_id}/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suggest Captures */
+        post: operations["suggest_captures_conversations__conversation_id__suggestions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -144,9 +268,170 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** CaptureItem */
+        CaptureItem: {
+            /** Content */
+            content: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "note" | "checkpoint";
+            /** Title */
+            title: string;
+        };
+        /** CaptureItemsRequest */
+        CaptureItemsRequest: {
+            /** Clientrequestid */
+            clientRequestId: string;
+            /** Items */
+            items: components["schemas"]["CaptureItem"][];
+            /** Sourcemessageid */
+            sourceMessageId: string;
+        };
+        /** CaptureItemsResponse */
+        CaptureItemsResponse: {
+            /** Checkpoints */
+            checkpoints?: components["schemas"]["CheckpointOut"][];
+            /** Notes */
+            notes?: components["schemas"]["NoteOut"][];
+        };
+        /** CaptureSuggestion */
+        CaptureSuggestion: {
+            /** Content */
+            content: string;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "note" | "checkpoint";
+            /** Title */
+            title: string;
+        };
+        /** CaptureSuggestionRequest */
+        CaptureSuggestionRequest: {
+            /**
+             * Intent
+             * @default both
+             * @enum {string}
+             */
+            intent: "both" | "notes" | "checkpoints";
+            /** Messageid */
+            messageId: string;
+        };
+        /** CaptureSuggestionsResponse */
+        CaptureSuggestionsResponse: {
+            /** Model */
+            model: string;
+            /** Suggestions */
+            suggestions?: components["schemas"]["CaptureSuggestion"][];
+            /** Traceid */
+            traceId?: string | null;
+        };
+        /** CheckpointOut */
+        CheckpointOut: {
+            /** Completed */
+            completed: boolean;
+            /** Completedat */
+            completedAt?: number | null;
+            /** Createdat */
+            createdAt: number;
+            /** Details */
+            details: string;
+            /** Id */
+            id: string;
+            /** Sourceconversationid */
+            sourceConversationId: string;
+            /** Sourcemessageid */
+            sourceMessageId: string;
+            /** Title */
+            title: string;
+        };
+        /** CheckpointUpdate */
+        CheckpointUpdate: {
+            /** Completed */
+            completed: boolean;
+        };
+        /** CheckpointsResponse */
+        CheckpointsResponse: {
+            /** Checkpoints */
+            checkpoints: components["schemas"]["CheckpointOut"][];
+        };
+        /** ConversationDetail */
+        ConversationDetail: {
+            /** Createdat */
+            createdAt: number;
+            /** Id */
+            id: string;
+            /** Messagecount */
+            messageCount: number;
+            /** Messages */
+            messages: components["schemas"]["ConversationMessageOut"][];
+            /** Title */
+            title: string;
+            /** Updatedat */
+            updatedAt: number;
+        };
+        /** ConversationMessageOut */
+        ConversationMessageOut: {
+            /** Content */
+            content: string;
+            /** Createdat */
+            createdAt: number;
+            /** Id */
+            id: string;
+            /** Parentid */
+            parentId?: string | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+        };
+        /** ConversationReplyRequest */
+        ConversationReplyRequest: {
+            /** Clientrequestid */
+            clientRequestId: string;
+            /** Parentid */
+            parentId: string;
+            /** Text */
+            text: string;
+        };
+        /** ConversationStartRequest */
+        ConversationStartRequest: {
+            /** Clientrequestid */
+            clientRequestId: string;
+            /** Text */
+            text: string;
+        };
+        /** ConversationSummary */
+        ConversationSummary: {
+            /** Createdat */
+            createdAt: number;
+            /** Id */
+            id: string;
+            /** Messagecount */
+            messageCount: number;
+            /** Title */
+            title: string;
+            /** Updatedat */
+            updatedAt: number;
+        };
+        /** ConversationsResponse */
+        ConversationsResponse: {
+            /** Conversations */
+            conversations: components["schemas"]["ConversationSummary"][];
+        };
         /** CreateNoteResponse */
         CreateNoteResponse: {
             note: components["schemas"]["NoteOut"];
+        };
+        /** DeleteConversationResponse */
+        DeleteConversationResponse: {
+            /** Ok */
+            ok: boolean;
         };
         /** DeleteNoteResponse */
         DeleteNoteResponse: {
@@ -206,6 +491,10 @@ export interface components {
              * @default false
              */
             searchLimited: boolean;
+        };
+        /** UpdateCheckpointResponse */
+        UpdateCheckpointResponse: {
+            checkpoint: components["schemas"]["CheckpointOut"];
         };
         /** UpdateNoteResponse */
         UpdateNoteResponse: {
@@ -353,6 +642,422 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiRevisionResponse"];
+                };
+            };
+            /** @description Firebase authentication is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description The local or provider AI request budget was exceeded. */
+            429: {
+                headers: {
+                    /** @description Seconds before another AI request should be attempted. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The AI provider rejected the request or returned invalid output. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The AI integration is not configured or is temporarily unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The complete AI operation exceeded its timeout budget. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_checkpoints_checkpoints_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckpointsResponse"];
+                };
+            };
+        };
+    };
+    update_checkpoint_checkpoints__checkpoint_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                checkpoint_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckpointUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateCheckpointResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_conversations_conversations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationsResponse"];
+                };
+            };
+        };
+    };
+    start_conversation_conversations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversationStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationDetail"];
+                };
+            };
+            /** @description Firebase authentication is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description The local or provider AI request budget was exceeded. */
+            429: {
+                headers: {
+                    /** @description Seconds before another AI request should be attempted. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The AI provider rejected the request or returned invalid output. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The AI integration is not configured or is temporarily unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The complete AI operation exceeded its timeout budget. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_conversation_conversations__conversation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_conversation_conversations__conversation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteConversationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    capture_items_conversations__conversation_id__captures_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureItemsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureItemsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reply_to_conversation_conversations__conversation_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversationReplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationDetail"];
+                };
+            };
+            /** @description Firebase authentication is missing or invalid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description The local or provider AI request budget was exceeded. */
+            429: {
+                headers: {
+                    /** @description Seconds before another AI request should be attempted. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The AI provider rejected the request or returned invalid output. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The AI integration is not configured or is temporarily unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The complete AI operation exceeded its timeout budget. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    suggest_captures_conversations__conversation_id__suggestions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptureSuggestionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureSuggestionsResponse"];
                 };
             };
             /** @description Firebase authentication is missing or invalid. */

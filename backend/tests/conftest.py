@@ -11,8 +11,10 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 from app.dependencies import get_current_uid  # noqa: E402
 from app.main import app  # noqa: E402
-from app.rate_limit import read_notes_limiter, write_notes_limiter  # noqa: E402
+from app.rate_limit import ai_limiter, read_notes_limiter, write_notes_limiter  # noqa: E402
 from app.routers import notes as notes_router  # noqa: E402
+from app.routers import checkpoints as checkpoints_router  # noqa: E402
+from app.routers import conversations as conversations_router  # noqa: E402
 
 
 class FakeSnapshot:
@@ -52,6 +54,11 @@ class FakeDocumentReference:
         if self._collection.operation_error:
             raise self._collection.operation_error
         self._collection.documents[self.id].update(dict(data))
+
+    def set(self, data):
+        if self._collection.operation_error:
+            raise self._collection.operation_error
+        self._collection.documents[self.id] = dict(data)
 
 
 class FakeQuery:
@@ -150,9 +157,10 @@ class FakeQuery:
 
 
 class FakeCollection:
-    def __init__(self):
+    def __init__(self, prefix="doc"):
         self.documents = {}
         self._counter = 0
+        self._prefix = prefix
         self.operation_error = None
         self.document_gets = []
 
@@ -160,7 +168,7 @@ class FakeCollection:
         if self.operation_error:
             raise self.operation_error
         self._counter += 1
-        doc_id = f"note-{self._counter}"
+        doc_id = f"{self._prefix}-{self._counter}"
         self.documents[doc_id] = dict(data)
         return None, FakeDocumentReference(self, doc_id)
 
@@ -169,6 +177,27 @@ class FakeCollection:
 
     def where(self, field=None, operator=None, value=None, *, filter=None):
         return FakeQuery(self).where(field, operator, value, filter=filter)
+
+
+class FakeWriteBatch:
+    def __init__(self):
+        self.operations = []
+
+    def set(self, document, data):
+        self.operations.append(("set", document, dict(data)))
+        return self
+
+    def delete(self, document):
+        self.operations.append(("delete", document, None))
+        return self
+
+    def commit(self):
+        for operation, document, data in self.operations:
+            if operation == "set":
+                document.set(data)
+            else:
+                document.delete()
+        return []
 
 
 def _sort_value(item, field):
@@ -183,18 +212,34 @@ def _sort_value(item, field):
 
 class FakeFirestore:
     def __init__(self):
-        self.notes = FakeCollection()
+        self.notes = FakeCollection("note")
+        self.conversations = FakeCollection("conversation")
+        self.conversation_messages = FakeCollection("message")
+        self.checkpoints = FakeCollection("checkpoint")
+        self.capture_batches = FakeCollection("capture")
+        self._collections = {
+            "notes": self.notes,
+            "conversations": self.conversations,
+            "conversation_messages": self.conversation_messages,
+            "checkpoints": self.checkpoints,
+            "capture_batches": self.capture_batches,
+        }
 
     def collection(self, name):
-        if name != "notes":
-            raise KeyError(name)
-        return self.notes
+        if name not in self._collections:
+            self._collections[name] = FakeCollection(name.rstrip("s"))
+        return self._collections[name]
+
+    def batch(self):
+        return FakeWriteBatch()
 
 
 @pytest.fixture
 def fake_db(monkeypatch):
     db = FakeFirestore()
     monkeypatch.setattr(notes_router, "get_firestore_client", lambda: db)
+    monkeypatch.setattr(conversations_router, "get_firestore_client", lambda: db)
+    monkeypatch.setattr(checkpoints_router, "get_firestore_client", lambda: db)
     return db
 
 
@@ -203,6 +248,7 @@ def client(fake_db):
     app.dependency_overrides[get_current_uid] = lambda: "user-1"
     read_notes_limiter.reset()
     write_notes_limiter.reset()
+    ai_limiter.reset()
 
     with TestClient(app) as test_client:
         yield test_client
@@ -210,3 +256,4 @@ def client(fake_db):
     app.dependency_overrides.clear()
     read_notes_limiter.reset()
     write_notes_limiter.reset()
+    ai_limiter.reset()

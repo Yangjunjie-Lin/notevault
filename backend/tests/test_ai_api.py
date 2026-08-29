@@ -11,8 +11,18 @@ from app.ai.client import (
     Completion,
     SiliconFlowClient,
 )
-from app.ai.prompts import FORMATTER_SYSTEM_PROMPT, REVISION_SYSTEM_PROMPT
-from app.ai.service import AiService, clean_ai_markdown, get_ai_service
+from app.ai.prompts import (
+    CAPTURE_SYSTEM_PROMPT,
+    CONVERSATION_SYSTEM_PROMPT,
+    FORMATTER_SYSTEM_PROMPT,
+    REVISION_SYSTEM_PROMPT,
+)
+from app.ai.service import (
+    AiService,
+    clean_ai_markdown,
+    get_ai_service,
+    parse_capture_suggestions,
+)
 from app.config import Settings, get_settings
 from app.dependencies import get_current_uid
 from app.main import app
@@ -302,6 +312,61 @@ def test_formatter_changed_false_for_identical_output(monkeypatch):
     result = asyncio.run(service.format_markdown("A note"))
 
     assert result.changed is False
+
+
+def test_conversation_service_uses_branch_context_and_controlled_prompt(monkeypatch):
+    settings = _settings(monkeypatch)
+    client = StubCompletionClient("## Focused reply")
+    service = AiService(settings, client=client)
+
+    result = asyncio.run(service.chat(
+        [("user", "Root idea"), ("assistant", "Earlier answer")],
+        "Explore this branch",
+    ))
+
+    assert result.content == "## Focused reply"
+    call = client.calls[0]
+    assert call["system_prompt"] == CONVERSATION_SYSTEM_PROMPT
+    assert call["request_type"] == "conversation_reply"
+    assert '<message role="user">\nRoot idea\n</message>' in call["user_prompt"]
+    assert "<latest-user-message>\nExplore this branch" in call["user_prompt"]
+
+
+def test_capture_service_validates_structured_suggestions(monkeypatch):
+    settings = _settings(monkeypatch)
+    client = StubCompletionClient(
+        '```json\n{"items":[{"kind":"checkpoint","title":" Test it ","content":" Run tests. "}]}\n```'
+    )
+    service = AiService(settings, client=client)
+
+    envelope, trace_id = asyncio.run(service.suggest_captures(
+        [("user", "We should test it")],
+        "checkpoints",
+    ))
+
+    assert trace_id == "trace-1"
+    assert envelope.items[0].title == "Test it"
+    assert envelope.items[0].content == "Run tests."
+    assert client.calls[0]["system_prompt"] == CAPTURE_SYSTEM_PROMPT
+    assert client.calls[0]["request_type"] == "conversation_capture"
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "not json",
+        '{"items":[{"kind":"task","title":"x","content":"y"}]}',
+        '{"items":[{"kind":"note","title":"x","content":"y","extra":true}]}',
+        '{"items":[],"systemPrompt":"forged"}',
+        "x" * 24_001,
+    ],
+)
+def test_capture_parser_rejects_malformed_or_untrusted_shapes(content):
+    with pytest.raises(AiProviderError) as exc_info:
+        parse_capture_suggestions(content)
+
+    assert exc_info.value.status_code == 502
+    assert exc_info.value.detail == "AI provider returned invalid capture suggestions"
 
 
 def test_service_maps_provider_error_to_sanitized_http_contract(monkeypatch):

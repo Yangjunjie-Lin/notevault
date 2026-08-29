@@ -1,6 +1,6 @@
 [project]
 name = "notevault-api"
-version = "1.2.0"
+version = "1.3.0"
 description = "FastAPI backend for NoteVault"
 requires-python = ">=3.12,<3.14"
 dependencies = [

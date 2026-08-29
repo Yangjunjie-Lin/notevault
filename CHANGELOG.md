@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.3.0 — 2026-08-30 — Visual AI Canvas
+
+### Added
+
+- Added a persistent, private AI Canvas with connected user/assistant nodes, zoom/fit controls, full-message inspection, and responsive semantic-tree fallbacks.
+- Added branching from any owned historical message using only the selected node's bounded ancestor path as model context.
+- Added review-only AI extraction of note and checkpoint candidates; every item starts unchecked and remains editable until explicitly selected and confirmed.
+- Added owned checkpoint listing and complete/reopen controls with source-conversation provenance.
+- Added user-controlled Canvas deletion that removes the conversation graph and capture receipts while preserving already confirmed notes and checkpoints.
+- Added authenticated conversation/checkpoint APIs, Firestore collections and indexes, generated TypeScript contracts, backend/frontend tests, Chromium/Firefox/WebKit coverage, mobile layout checks, and axe validation.
+
+### Changed
+
+- Added `Notes | AI Canvas` workspace navigation with dirty-note protection across views.
+- Reused the backend-only SiliconFlow/DeepSeek integration for non-streaming Canvas replies and strict structured capture extraction; browser code still cannot select provider parameters or access provider credentials.
+- Made completed conversation turns deterministic and atomic across both message nodes and their conversation summary.
+- Made capture confirmation idempotent and atomic through deterministic record IDs and Firestore batches.
+- Updated root/frontend/backend/OpenAPI metadata, documentation, release checks, production smoke coverage, and dependency locks to v1.3.0.
+
+### Security and privacy
+
+- Preserved Firebase UID ownership checks and uniform cross-user `404` behavior across conversations, messages, captures, checkpoints, and deletion.
+- Kept AI suggestions non-persistent and prevented AI output from directly writing notes or tasks; only user-selected, user-editable items can be materialized.
+- Limited provider context to the selected branch, kept sibling branches and note tags out of requests, and retained safe Markdown rendering with remote images blocked.
+- Kept the SiliconFlow key, model, prompt, limits, and provider URL server-owned; frontend dependency audit is clean.
+
+### Known limitations
+
+- Responses are non-streaming and each conversation is capped at 500 messages; provider context is capped at 24 ancestor messages.
+- AI rate limiting remains per warm serverless instance rather than globally distributed.
+- The release has no RAG, embeddings, vector database, cross-note memory, external search, autonomous tools, or collaborative sharing.
+- The latest Firebase CLI retains five moderate development-only transitive advisories; production dependencies and the frontend audit cleanly.
+
 ## 1.2.0 — 2026-08-06 — AI Markdown Assistant
 
 ### Added

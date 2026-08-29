@@ -31,6 +31,21 @@ vi.mock('../features/ai/api', () => ({
   },
 }))
 
+vi.mock('../features/conversations/api', () => ({
+  conversationsApi: {
+    list: vi.fn().mockResolvedValue({ conversations: [] }),
+    get: vi.fn(),
+    start: vi.fn(),
+    reply: vi.fn(),
+    suggest: vi.fn(),
+    capture: vi.fn(),
+  },
+  checkpointsApi: {
+    list: vi.fn().mockResolvedValue({ checkpoints: [] }),
+    update: vi.fn(),
+  },
+}))
+
 const user = {
   uid: 'user-1',
   displayName: 'Test User',
@@ -81,6 +96,7 @@ async function renderWorkspace() {
 describe('NoteVault workspace', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    window.history.replaceState(null, '', '#notes')
     authenticate()
     vi.mocked(notesApi.list).mockResolvedValue(response([note]))
     vi.mocked(notesApi.create).mockResolvedValue({
@@ -108,6 +124,30 @@ describe('NoteVault workspace', () => {
     fireEvent.change(screen.getByLabelText('Note body (Markdown)'), { target: { value: '## Preview title' } })
     fireEvent.click(screen.getByRole('tab', { name: /preview/i }))
     expect(screen.getByRole('heading', { name: 'Preview title' })).toBeInTheDocument()
+  })
+
+  it('navigates between Notes and AI Canvas while preserving clean workspace state', async () => {
+    await renderWorkspace()
+    fireEvent.click(screen.getByRole('button', { name: 'AI Canvas' }))
+    expect(await screen.findByRole('main', { name: 'AI conversation canvas' })).toBeInTheDocument()
+    expect(window.location.hash).toBe('#canvas')
+    fireEvent.click(screen.getByRole('button', { name: 'Notes' }))
+    expect(await screen.findByRole('main', { name: 'Notes workspace' })).toBeInTheDocument()
+  })
+
+  it('requires discard confirmation before a dirty note can navigate to AI Canvas', async () => {
+    await renderWorkspace()
+    fireEvent.change(screen.getByLabelText('Note body (Markdown)'), {
+      target: { value: 'Unsaved navigation draft' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'AI Canvas' }))
+    const dialog = screen.getByRole('dialog', { name: 'Discard unsaved changes?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('main', { name: 'Notes workspace' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'AI Canvas' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }))
+    expect(await screen.findByRole('main', { name: 'AI conversation canvas' })).toBeInTheDocument()
   })
 
   it('creates a normalized-tag note and clears the successful draft', async () => {

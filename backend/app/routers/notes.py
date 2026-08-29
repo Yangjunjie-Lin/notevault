@@ -264,7 +264,7 @@ def _require_text(value: str) -> str:
     text = value.strip()
     if not text:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Note text cannot be empty",
         )
     return text

@@ -52,7 +52,7 @@ def _bounded_number(
 class Settings:
     def __init__(self) -> None:
         self.app_name = os.getenv("APP_NAME", "NoteVault API")
-        self.version = os.getenv("APP_VERSION", "1.2.0")
+        self.version = os.getenv("APP_VERSION", "1.3.0")
         self.environment = os.getenv("ENVIRONMENT", "development").strip().lower()
         self.allowed_origins = self._resolve_origins(
             os.getenv(

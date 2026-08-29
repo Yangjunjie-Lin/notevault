@@ -9,14 +9,14 @@ Production-oriented
 Portfolio flagship
 ```
 
-NoteVault v1.2.0 supports two bounded AI features: reviewable Markdown normalization before save and temporary AI Assist revision candidates inside the existing Composer. This is a deliberate supported feature phase, so the previous statement that all AI features were out of scope no longer applies.
+NoteVault v1.3.0 supports reviewable Markdown normalization, temporary Composer revisions, and a persistent visual AI Canvas with owned message branches and explicit note/checkpoint capture. This is a deliberate supported feature phase.
 
 Production status remains a two-boundary claim: both the `notevault` frontend and `notevault-api` backend deployments must be Ready for the same commit and the release smoke checklist must pass. A single Vercel status is insufficient.
 
 ## Supported change scope
 
 - Security vulnerabilities, credential rotation, prompt-boundary hardening, and privacy corrections
-- Reliability and usability improvements to automatic Markdown formatting and AI Assist
+- Reliability and usability improvements to automatic Markdown formatting, AI Assist, AI Canvas, and checkpoints
 - Browser, Firebase, FastAPI, Vite, Node, Python, SiliconFlow API, and DeepSeek model compatibility
 - Dependency support, end-of-life maintenance, and reproducible user-reported bugs
 - Tested accessibility, performance, availability, and failure-recovery improvements
@@ -24,9 +24,8 @@ Production status remains a two-boundary claim: both the `notevault` frontend an
 
 ## Out of scope
 
-- General-purpose chat, autonomous agents, tool calling, RAG, embeddings, vector databases, or web search
-- AI features that directly save to Firestore, bypass review/apply controls, change tags, or expose provider credentials to the browser
-- Persisted AI conversations or cross-note memory
+- Autonomous agents, tool calling, RAG, embeddings, vector databases, web search, or cross-note memory
+- AI/provider features that autonomously save to Firestore, bypass item-level review/apply controls, change user tags, or expose provider credentials to the browser
 - Collaboration, sharing, notifications, attachments, rich text, or offline synchronization
 - Subscriptions, payments, advertising, or analytics tracking
 - Microservices, Redis, external search services, or new global frontend state frameworks without a separately approved architecture change
@@ -41,14 +40,14 @@ Production status remains a two-boundary claim: both the `notevault` frontend an
 - [ ] `npm run contract:generate` and `npm run contract:check`
 - [ ] `npm run build:frontend`
 - [ ] `npm run release:check` and `npm run check`
-- [ ] Production-build E2E: Chromium full, Firefox/WebKit smoke, mobile viewport smoke, axe, AI review/apply, and provider-failure fallback
+- [ ] Production-build E2E: Chromium full, Firefox/WebKit smoke, mobile viewport smoke, axe, Canvas branching/rehydration/selective capture, AI review/apply, and provider-failure fallback
 - [ ] `npm run test:firebase-integration`
 - [ ] `npm audit`, `npm audit --omit=dev`, `npm --prefix frontend audit`, and `npm --prefix frontend audit --omit=dev`
 - [ ] Review Python dependency versions/advisories; confirm runtime pins agree between `backend/requirements.txt` and `backend/pyproject.toml`
 - [ ] `python scripts/production_smoke.py`
 - [ ] Frontend `notevault` and backend `notevault-api` deployments are Ready for the same commit
 - [ ] All `SILICONFLOW_*` values exist only in the backend Project; the key is absent from frontend environment variables and bundle assets
-- [ ] Firestore composite index reports Enabled and Firebase Authorized Domains contains the production frontend hostname
+- [ ] Every note, conversation-message, conversation-summary, and checkpoint composite index reports Enabled; Firebase Authorized Domains contains the production frontend hostname
 - [ ] Authenticated create/edit flows cover identical formatting, formatting review, save-original recovery, AI Assist apply, and sign-out state cleanup
 - [ ] No `.env`, `.vercel/`, service account, private key, token, provider key, provider response, or test artifact is tracked
 - [ ] Changelog, package/lockfile versions, backend/OpenAPI version, README badge, tag, release notes, and any GitHub Release agree
@@ -79,7 +78,7 @@ Every new dependency must have a documented feature need, a reviewed version con
 4. Apply the migration, run Emulator integration, then production smoke.
 5. Roll back application aliases first if production validation fails. Restore data only from an operator-reviewed backup or reversible migration plan.
 
-AI drafts, candidates, and conversation messages are not stored in Firestore in v1.2.0. Introducing persistence is a schema/privacy change and requires separate review.
+Composer AI Assist drafts/candidates are not stored. AI Canvas messages and confirmed checkpoints are stored in additive v1.3.0 collections. Schema changes must preserve owner checks, atomic deterministic turn writes, capture idempotency, provenance, user-controlled graph deletion, and rollback compatibility. Deleting a graph must not cascade into already confirmed notes or checkpoints.
 
 Version 2 timeline cursors sign `createdAt` and document ID and continue by field values. Filtered search scans a bounded recent-note set and uses a signed offset. Cursor key rotation invalidates existing cursors and must be called out in release notes.
 
@@ -93,7 +92,7 @@ Version 2 timeline cursors sign `createdAt` and document ID and continue by fiel
 
 ## Rate limiting and availability
 
-Read, write, and AI budgets are separate and keyed by verified UID. Formatting and revision share the configured AI budget. The limiter is resettable in tests and returns `Retry-After` on `429`.
+Read, write, and AI budgets are separate and keyed by verified UID. Formatting, revision, Canvas replies, and capture extraction share the configured AI budget. The limiter is resettable in tests and returns `Retry-After` on `429`.
 
 The limiter is in-memory per warm serverless instance, not distributed or global. Provider quotas and billing alerts are separate controls. During provider failure, the supported degradation is a preserved draft, sanitized feedback, retry/cancel controls, and explicit save-original behavior; AI Assist does not fabricate a local fallback.
 
@@ -105,4 +104,4 @@ Chromium runs the full suite. Firefox and WebKit run the maintained core smoke, 
 
 Anonymous automation checks frontend HTML/assets, backend health/docs/OpenAPI, unauthenticated `401` behavior, exact CORS, and absence of local/test/provider-secret bundle markers. Authenticated acceptance remains an operator checklist because CI has no production user token.
 
-For authenticated AI acceptance, create a temporary draft, exercise changed and unchanged formatter results, verify every review choice, apply an AI Assist candidate without saving it automatically, then save and review final formatting. Simulate or induce a controlled provider failure and verify that the original draft remains savable only after explicit confirmation. Remove all temporary notes afterward.
+For authenticated AI acceptance, create a temporary draft, exercise changed and unchanged formatter results, verify every review choice, apply an AI Assist candidate without saving it automatically, then save and review final formatting. Create a disposable Canvas, branch from an earlier node, reload to verify persistence, prepare capture candidates, save only a chosen subset, and verify the resulting note/checkpoint. Delete the Canvas and confirm the graph disappears while the approved note/checkpoint remains. Simulate or induce a controlled provider failure and verify that original drafts and persisted graphs remain safe. Remove the remaining temporary notes and checkpoints according to the operator retention procedure.

@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .config import get_settings
-from .routers import ai, health, notes
+from .routers import ai, checkpoints, conversations, health, notes
 
 
 logging.basicConfig(level=logging.INFO)
@@ -26,6 +26,18 @@ SAFE_VALIDATION_LOCATIONS = {
     "q",
     "tag",
     "note_id",
+    "conversation_id",
+    "checkpoint_id",
+    "clientRequestId",
+    "parentId",
+    "messageId",
+    "sourceMessageId",
+    "intent",
+    "kind",
+    "title",
+    "content",
+    "items",
+    "completed",
 }
 
 # Wildcard origins cannot be combined with credentialed browser requests.
@@ -58,7 +70,7 @@ async def sanitized_validation_error(
             }
         )
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={"detail": details},
     )
 
@@ -73,3 +85,5 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(notes.router)
 app.include_router(ai.router)
+app.include_router(conversations.router)
+app.include_router(checkpoints.router)

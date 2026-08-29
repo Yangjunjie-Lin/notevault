@@ -45,7 +45,7 @@ Required production environment:
 
 ```dotenv
 ENVIRONMENT=production
-APP_VERSION=1.2.0
+APP_VERSION=1.3.0
 ALLOWED_ORIGINS=https://notevault-lovat.vercel.app
 FIREBASE_CREDENTIALS_JSON=<sensitive single-line service account JSON>
 CURSOR_SIGNING_KEY=<random secret of at least 32 characters>
@@ -75,7 +75,7 @@ If any key has been pasted into chat, committed, logged, or placed in frontend c
 
 Deploy `firestore.indexes.json` and wait for the composite index (`uid ASC`, `createdAt DESC`) to become Enabled. If the database predates millisecond timestamps, run the normalization script without `--apply`, review the count, then run it with `--apply` before relying on chronological cursor pagination.
 
-AI Assist sessions and candidates are not stored in Firestore in v1.2.0, so this release requires no AI-data migration.
+Composer AI Assist sessions remain temporary. AI Canvas conversations and checkpoints are stored in the additive `conversations`, `conversation_messages`, `checkpoints`, and `capture_batches` collections; deploy `firestore.indexes.json` before enabling the v1.3.0 UI.
 
 ## Pre-deployment gates
 
@@ -161,10 +161,10 @@ Monitor sanitized provider error categories, latency, response status, optional 
 
 The AI limiter is in-memory per warm Vercel instance. It is useful for local fairness but is not a distributed/global quota or billing control. SiliconFlow quotas and account safeguards remain necessary.
 
-Provider calls are non-streaming. AI session history exists only in the current frontend session. A provider outage disables revision and causes formatter failure recovery, but ordinary note reads/writes remain available and the original draft can be saved through the explicit fallback.
+Provider calls are non-streaming. Composer AI Assist candidates exist only in the current frontend session; AI Canvas graphs persist until the user deletes them. A provider outage disables new Canvas replies, capture extraction, and revision, and causes formatter failure recovery, but persisted graphs, checkpoints, ordinary note reads/writes, and the explicit save-original path remain available.
 
 ## Rollback
 
 Vercel retains immutable deployments. If smoke checks fail, reassign both stable aliases to the last mutually compatible Ready deployments. Rolling back only one boundary can leave the frontend and OpenAPI contract mismatched.
 
-AI fields are not stored in notes, so v1.2.0 rollback requires no AI-data migration. If the incident is provider-only, leave ordinary note service online, rotate or remove the backend key as needed, and communicate that AI features are temporarily unavailable. Never copy the key into the frontend as a workaround.
+AI provenance fields do not change the public note contract. A v1.3.0 rollback can leave conversation/checkpoint collections in place because v1.2 clients do not query them; do not delete captured notes or checkpoints during an application rollback. If the incident is provider-only, leave ordinary note service online, rotate or remove the backend key as needed, and communicate that AI features are temporarily unavailable. Never copy the key into the frontend as a workaround.
