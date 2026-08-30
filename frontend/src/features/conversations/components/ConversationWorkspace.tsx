@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 
 import SafeMarkdown from '../../notes/components/SafeMarkdown'
 import type { Note } from '../../notes/types'
@@ -66,14 +66,43 @@ export default function ConversationWorkspace({ onNotesCaptured, onBlockingChang
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const composerRef = useRef<HTMLTextAreaElement>(null)
+  const composerContainerRef = useRef<HTMLFormElement>(null)
+  const centerRef = useRef<HTMLDivElement>(null)
 
-  const busy = sending || captureLoading || captureSaving || deleting
+  const mutating = sending || captureLoading || captureSaving || deleting
+  const busy = loading || mutating
   const selected = useMemo(
     () => detail?.messages.find((message) => message.id === selectedId) ?? null,
     [detail, selectedId],
   )
 
-  useEffect(() => onBlockingChange?.(busy), [busy, onBlockingChange])
+  useEffect(() => onBlockingChange?.(mutating), [mutating, onBlockingChange])
+
+  useLayoutEffect(() => {
+    const center = centerRef.current
+    const composer = composerContainerRef.current
+    if (!center || !composer) return undefined
+    const centerElement = center
+    const composerElement = composer
+
+    function updateInset() {
+      const centerRect = centerElement.getBoundingClientRect()
+      const composerRect = composerElement.getBoundingClientRect()
+      if (composerRect.height <= 0) return
+      const bottomGap = Math.max(0, centerRect.bottom - composerRect.bottom)
+      centerElement.style.setProperty(
+        '--nv-canvas-composer-inset',
+        `${Math.ceil(composerRect.height + bottomGap + 12)}px`,
+      )
+    }
+
+    updateInset()
+    if (typeof ResizeObserver === 'undefined') return undefined
+    const observer = new ResizeObserver(updateInset)
+    observer.observe(composerElement)
+    observer.observe(centerElement)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -132,6 +161,7 @@ export default function ConversationWorkspace({ onNotesCaptured, onBlockingChang
     setError('')
     try {
       const loaded = await conversationsApi.get(id)
+      setZoom(0.9)
       upsertDetail(loaded)
     } catch (loadError) {
       setError(errorMessage(loadError, 'Failed to load this conversation.'))
@@ -146,6 +176,7 @@ export default function ConversationWorkspace({ onNotesCaptured, onBlockingChang
     setDetail(null)
     setSelectedId(null)
     setDraft('')
+    setZoom(0.9)
     setError('')
     setStatus('New conversation ready. Your first message is not sent until you choose Start.')
     window.setTimeout(() => composerRef.current?.focus(), 0)
@@ -313,7 +344,7 @@ export default function ConversationWorkspace({ onNotesCaptured, onBlockingChang
         </div>
       </aside>
 
-      <div className="nv-conversation-center">
+      <div className="nv-conversation-center" ref={centerRef}>
         {loading ? (
           <div className="nv-canvas-loading" aria-busy="true">
             <span className="nv-spinner" aria-hidden="true" />
@@ -321,6 +352,7 @@ export default function ConversationWorkspace({ onNotesCaptured, onBlockingChang
           </div>
         ) : detail ? (
           <ConversationGraph
+            key={detail.id}
             messages={detail.messages}
             selectedId={selectedId}
             zoom={zoom}
@@ -347,7 +379,7 @@ export default function ConversationWorkspace({ onNotesCaptured, onBlockingChang
           </section>
         )}
 
-        <form className="nv-canvas-composer" onSubmit={sendMessage}>
+        <form className="nv-canvas-composer" ref={composerContainerRef} onSubmit={sendMessage}>
           <div className="nv-composer-context">
             <span className="nv-canvas-kicker">{detail ? 'Branch from' : 'New conversation'}</span>
             <strong>{selected ? `${selected.role === 'assistant' ? 'AI' : 'You'} · ${inlineSnippet(selected.content).slice(0, 72)}` : 'Start a fresh map'}</strong>

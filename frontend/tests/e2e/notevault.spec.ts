@@ -344,6 +344,98 @@ test('AI Canvas persists branches and only captures explicitly selected items @s
   await expect(page.getByRole('heading', { name: 'Conversation insight' })).toBeVisible()
 })
 
+test('AI Canvas keeps new branches visible and provides stable wheel zoom and middle-drag panning', async ({ page }) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  await signIn(page)
+  await page.getByRole('button', { name: 'AI Canvas' }).click()
+  await page.getByLabel('Start a conversation').fill('Build a wide canvas interaction test')
+  await page.getByRole('button', { name: 'Start', exact: true }).click()
+
+  for (const prompt of [
+    'Add the first implementation checkpoint',
+    'Add the second implementation checkpoint',
+    'Add the third implementation checkpoint',
+  ]) {
+    await page.getByLabel('Reply to selected message').fill(prompt)
+    await page.getByRole('button', { name: 'Add branch' }).click()
+  }
+
+  const viewport = page.getByLabel('Conversation canvas viewport')
+  const selected = page.getByRole('treeitem', { selected: true })
+  await expect(selected).toBeVisible()
+  const visibleState = await page.evaluate(() => {
+    const canvas = document.querySelector<HTMLElement>('.nv-canvas-viewport')!
+    const node = document.querySelector<HTMLElement>('.nv-message-node--selected')!
+    const canvasRect = canvas.getBoundingClientRect()
+    const nodeRect = node.getBoundingClientRect()
+    return {
+      nodeLeft: nodeRect.left,
+      nodeRight: nodeRect.right,
+      canvasLeft: canvasRect.left,
+      canvasRight: canvasRect.right,
+    }
+  })
+  expect(visibleState.nodeLeft).toBeGreaterThanOrEqual(visibleState.canvasLeft)
+  expect(visibleState.nodeRight).toBeLessThanOrEqual(visibleState.canvasRight)
+
+  const box = await viewport.boundingBox()
+  expect(box).not.toBeNull()
+  const pointerX = box!.x + box!.width * 0.55
+  const pointerY = box!.y + Math.min(220, box!.height * 0.35)
+  await page.mouse.move(pointerX, pointerY)
+  const beforeZoom = await page.evaluate(({ pointerX, pointerY }) => {
+    const canvas = document.querySelector<HTMLElement>('.nv-canvas-viewport')!
+    const stage = document.querySelector<HTMLElement>('.nv-graph-stage')!
+    const rect = canvas.getBoundingClientRect()
+    const zoom = Number.parseFloat(stage.style.transform.slice(6))
+    return {
+      worldX: (canvas.scrollLeft + pointerX - rect.left) / zoom,
+      worldY: (canvas.scrollTop + pointerY - rect.top) / zoom,
+    }
+  }, { pointerX, pointerY })
+
+  await page.keyboard.down('Control')
+  await page.mouse.wheel(0, -120)
+  await page.keyboard.up('Control')
+  await expect(page.getByLabel('Canvas zoom')).not.toHaveText('90%')
+  const afterZoom = await page.evaluate(({ pointerX, pointerY }) => {
+    const canvas = document.querySelector<HTMLElement>('.nv-canvas-viewport')!
+    const stage = document.querySelector<HTMLElement>('.nv-graph-stage')!
+    const rect = canvas.getBoundingClientRect()
+    const zoom = Number.parseFloat(stage.style.transform.slice(6))
+    return {
+      worldX: (canvas.scrollLeft + pointerX - rect.left) / zoom,
+      worldY: (canvas.scrollTop + pointerY - rect.top) / zoom,
+    }
+  }, { pointerX, pointerY })
+  expect(Math.abs(afterZoom.worldX - beforeZoom.worldX)).toBeLessThanOrEqual(1)
+  // A shallow graph can have no vertical overflow, so the browser clamps Y at the top edge.
+  expect(Math.abs(afterZoom.worldY - beforeZoom.worldY)).toBeLessThanOrEqual(50)
+
+  await viewport.evaluate((element) => {
+    element.scrollLeft = Math.min(240, element.scrollWidth - element.clientWidth)
+    element.scrollTop = Math.min(80, element.scrollHeight - element.clientHeight)
+  })
+  const beforePan = await viewport.evaluate((element) => ({
+    left: element.scrollLeft,
+    top: element.scrollTop,
+  }))
+  const selectedLabel = await selected.getAttribute('aria-label')
+  await page.mouse.move(pointerX, pointerY)
+  await page.mouse.down({ button: 'middle' })
+  await page.mouse.move(pointerX - 90, pointerY - 45, { steps: 5 })
+  await page.mouse.up({ button: 'middle' })
+  const afterPan = await viewport.evaluate((element) => ({
+    left: element.scrollLeft,
+    top: element.scrollTop,
+  }))
+  expect(afterPan.left).toBeGreaterThan(beforePan.left)
+  expect(afterPan.top).toBeGreaterThanOrEqual(beforePan.top)
+  await expect(page.getByRole('treeitem', { selected: true })).toHaveAttribute('aria-label', selectedLabel!)
+  expect(pageErrors).toEqual([])
+})
+
 test('AI Canvas uses a readable single-column tree on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await signIn(page)
@@ -353,11 +445,60 @@ test('AI Canvas uses a readable single-column tree on mobile', async ({ page }) 
   await expect(page.getByRole('treeitem')).toHaveCount(2)
   await expectNoAxeViolations(page, 'AI Canvas mobile tree')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await expect(page.locator('.nv-canvas-tools')).toBeHidden()
   const positions = await page.getByRole('treeitem').evaluateAll((nodes) => nodes.map((node) => ({
     position: getComputedStyle(node).position,
     width: node.getBoundingClientRect().width,
   })))
   expect(positions.every((item) => item.position === 'static' && item.width <= 366)).toBe(true)
+})
+
+test('Notes and AI Canvas remain coherent at 1180, 820, 640, and 390 pixels', async ({ page }) => {
+  await page.setViewportSize({ width: 1180, height: 844 })
+  await signIn(page)
+
+  for (const width of [1180, 820, 640, 390]) {
+    await page.setViewportSize({ width, height: 844 })
+    const notesLayout = await page.evaluate(() => {
+      const fields = document.querySelector<HTMLElement>('.nv-toolbar-fields')!
+      return {
+        overflowFree: document.documentElement.scrollWidth <= window.innerWidth + 1,
+        columns: getComputedStyle(fields).gridTemplateColumns.split(' ').length,
+      }
+    })
+    expect(notesLayout.overflowFree).toBe(true)
+    expect(notesLayout.columns).toBe(width <= 640 ? 1 : 2)
+  }
+
+  await page.setViewportSize({ width: 1180, height: 844 })
+  await page.getByRole('button', { name: 'AI Canvas' }).click()
+  await page.getByLabel('Start a conversation').fill('Responsive canvas test')
+  await page.getByRole('button', { name: 'Start', exact: true }).click()
+
+  for (const width of [1180, 820, 640, 390]) {
+    await page.setViewportSize({ width, height: 844 })
+    const canvasLayout = await page.evaluate(() => {
+      const workspace = document.querySelector<HTMLElement>('.nv-conversation-workspace')!
+      const node = document.querySelector<HTMLElement>('.nv-message-node')!
+      const tools = document.querySelector<HTMLElement>('.nv-canvas-tools')!
+      return {
+        overflowFree: document.documentElement.scrollWidth <= window.innerWidth + 1,
+        workspaceDisplay: getComputedStyle(workspace).display,
+        nodePosition: getComputedStyle(node).position,
+        toolsVisible: getComputedStyle(tools).display !== 'none',
+      }
+    })
+    expect(canvasLayout.overflowFree).toBe(true)
+    if (width === 1180) {
+      expect(canvasLayout.workspaceDisplay).toBe('grid')
+      expect(canvasLayout.nodePosition).toBe('absolute')
+      expect(canvasLayout.toolsVisible).toBe(true)
+    } else {
+      expect(canvasLayout.workspaceDisplay).toBe('block')
+      expect(canvasLayout.nodePosition).toBe('static')
+      expect(canvasLayout.toolsVisible).toBe(false)
+    }
+  }
 })
 
 test('axe: signed-out, empty, list, edit, preview, and dialogs', async ({ page, request }) => {

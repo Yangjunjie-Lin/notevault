@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { checkpointsApi, conversationsApi } from '../api'
@@ -81,6 +81,20 @@ describe('ConversationWorkspace', () => {
     vi.mocked(checkpointsApi.update).mockResolvedValue({
       checkpoint: { ...checkpoint, completed: true, completedAt: 600 },
     })
+  })
+
+  it('does not allow a new send while the initial workspace is still loading', async () => {
+    let resolveList = (_value: { conversations: ConversationSummary[] }) => {}
+    vi.mocked(conversationsApi.list).mockReturnValue(new Promise((resolve) => {
+      resolveList = resolve
+    }))
+
+    render(<ConversationWorkspace onNotesCaptured={vi.fn()} />)
+    expect(screen.getByText(/Loading your conversation map/i)).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByLabelText('Start a conversation')).toBeDisabled()
+
+    await act(async () => resolveList({ conversations: [] }))
+    await waitFor(() => expect(screen.getByLabelText('Start a conversation')).toBeEnabled())
   })
 
   it('starts a private conversation from the empty visual state', async () => {

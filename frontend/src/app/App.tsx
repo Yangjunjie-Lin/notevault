@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 
 import AppHeader from '../features/auth/components/AppHeader'
 import AuthLanding from '../features/auth/components/AuthLanding'
@@ -10,7 +10,6 @@ import {
   subscribeToAuth,
   type AuthUser,
 } from '../features/auth/firebase'
-import ConversationWorkspace from '../features/conversations/components/ConversationWorkspace'
 import EmptyState from '../features/notes/components/EmptyState'
 import NoteCard from '../features/notes/components/NoteCard'
 import NoteComposer from '../features/notes/components/NoteComposer'
@@ -21,6 +20,10 @@ import ConfirmDialog from '../shared/components/ConfirmDialog'
 import ErrorBanner from '../shared/components/ErrorBanner'
 import LoadingSkeleton from '../shared/components/LoadingSkeleton'
 import '../styles/app.css'
+
+const ConversationWorkspace = lazy(
+  () => import('../features/conversations/components/ConversationWorkspace'),
+)
 
 type PendingDiscard =
   | { kind: 'cancel' }
@@ -326,10 +329,17 @@ export default function App() {
           </section>
         </main>
       ) : user ? (
-        <ConversationWorkspace
-          onNotesCaptured={workspace.ingest}
-          onBlockingChange={setCanvasBlocking}
-        />
+        <Suspense fallback={(
+          <main id="main-content" className="nv-auth-loading" aria-busy="true">
+            <span className="nv-spinner" aria-hidden="true" />
+            <span>Opening your private AI canvas…</span>
+          </main>
+        )}>
+          <ConversationWorkspace
+            onNotesCaptured={workspace.ingest}
+            onBlockingChange={setCanvasBlocking}
+          />
+        </Suspense>
       ) : (
         <AuthLanding authReady={authReady} authBusy={authBusy} onSignIn={handleSignIn} />
       )}

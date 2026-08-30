@@ -6,7 +6,7 @@ and Firestore only inside the dedicated E2E server process.
 
 from app.dependencies import get_current_uid
 from app.main import app
-from app.rate_limit import read_notes_limiter, write_notes_limiter
+from app.rate_limit import ai_limiter, read_notes_limiter, write_notes_limiter
 from app.routers import notes as notes_router
 from app.routers import conversations as conversations_router
 from app.routers import checkpoints as checkpoints_router
@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 database = FakeFirestore()
 read_notes_limiter.reset()
 write_notes_limiter.reset()
+ai_limiter.reset()
 app.dependency_overrides[get_current_uid] = lambda: "e2e-user"
 notes_router.get_firestore_client = lambda: database
 conversations_router.get_firestore_client = lambda: database
@@ -68,6 +69,7 @@ def reset_test_database():
     database = FakeFirestore()
     read_notes_limiter.reset()
     write_notes_limiter.reset()
+    ai_limiter.reset()
     notes_router.get_firestore_client = lambda: database
     conversations_router.get_firestore_client = lambda: database
     checkpoints_router.get_firestore_client = lambda: database
